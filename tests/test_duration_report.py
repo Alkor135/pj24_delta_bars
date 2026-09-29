@@ -76,6 +76,15 @@ class DurationReportTests(unittest.TestCase):
         self.assertEqual(parser.sources, [])
         self.assertEqual(json.loads(parser.scripts["report-data"])["symbol"], "Si")
 
+    def test_entry_rule_is_visible_and_escaped(self):
+        """Показывает режим ALF в основном описании отчёта с экранированием условий."""
+        text, _ = self.render({'symbol': 'RTS', 'meta': {
+            'entry_rule': 'Long: close > ALF; Short: close < ALF; α=0.4',
+            'entry_filter': {'mode': 'alf', 'alpha': .4}}})
+        self.assertTrue('<strong>Условия входа</strong>' in text, 'В отчёте не показаны условия входа')
+        self.assertTrue('close &gt; ALF' in text, 'Не показано экранированное условие Long')
+        self.assertTrue('close &lt; ALF' in text, 'Не показано экранированное условие Short')
+
     def test_holdout_curve_resets_development_profit(self):
         """Контрольный график начинается без накопленной прибыли периода подбора."""
         _,parser=self.render({'symbol':'RTS','meta':{'holdout_start':'2026-01-01'},

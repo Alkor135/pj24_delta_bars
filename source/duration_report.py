@@ -37,6 +37,12 @@ LABELS = {
     "gross_pnl": "PnL до затрат", "pnl": "PnL", "net": "Чистый PnL", "gross": "PnL до затрат",
     "entry_time": "Время входа", "exit_time": "Время выхода", "entry_price": "Цена входа",
     "exit_price": "Цена выхода", "direction": "Направление", "side": "Сторона",
+    "entry_signal_close": "Закрытие сигнального бара", "entry_signal_alf": "ALF сигнального бара",
+    "entry_filter": "Фильтр входа", "entry_rule": "Условия входа",
+    "position_direction": "Направление входов", "direction_multiplier": "Множитель направления",
+    "entry_script": "Скрипт запуска",
+    "alf_history_start": "Начало истории ALF", "alf_warmup_bars": "Баров прогрева до начала теста",
+    "alf_history_sha256": "Контрольная сумма истории ALF",
     "symbol": "Инструмент", "contract": "Контракт", "entry_date": "Дата входа",
     "exit_date": "Дата выхода", "exit_reason": "Причина выхода", "duration": "Длительность",
     "units": "Единицы результата", "tick_size": "Шаг цены", "session": "Торговая сессия",
@@ -271,6 +277,7 @@ def write_report(output_dir, payload):
     development_label=escape(str(meta.get('development_start','2022'))+' — '+str(meta.get('development_end','2025'))) if meta.get('development_start') else '2022–2025'
     control_label=escape(str(meta.get('holdout_start','2026-01-01')))
     base_label=_display(meta.get('base_cost_ticks'))
+    direction_label=_display(meta.get('position_direction','прямое'))
     cards = [("Сравниваемых пар", len(summary)),
              ("Первая пара по порядку разработки", first.get("label")),
              ("Её PnL · разработка", first.get("development_pnl")),
@@ -289,18 +296,19 @@ def write_report(output_dir, payload):
     coverage_badges = " ".join(f'<span class="badge">{escape(status)}: {count}</span>' for status, count in status_counts.items())
     wf = payload.get("walk_forward") or {}
     disclaimer = _display(meta.get("disclaimer") or "Исторический результат не гарантирует прибыль в будущем. Выводы ограничены доступными данными и принятой моделью исполнения.")
+    entry_rule = ('<p><strong>Условия входа</strong>: ' + _display(meta['entry_rule']) + '</p>') if meta.get('entry_rule') else ''
     page = f'''<!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{symbol} · Длительность дельта-баров</title><style>{_CSS}</style></head>
 <body><div class="page">
 <header><div class="eyebrow">ИССЛЕДОВАНИЕ ДЕЛЬТА-БАРОВ</div><h1>{symbol}<span>Длительность → торговый результат</span></h1>
 <p class="lead">Сравнение пар порогов входа и выхода, устойчивости результата и затрат исполнения.</p>
-<div class="badges"><span class="badge development">Разработка · {development_label}</span><span class="badge holdout">Контроль · с {control_label}</span><span class="badge">Опорные издержки · {base_label} шагов за круг</span><span class="badge">Автономный HTML · без интернета</span></div>
+<div class="badges"><span class="badge">Направление входов · {direction_label}</span><span class="badge development">Разработка · {development_label}</span><span class="badge holdout">Контроль · с {control_label}</span><span class="badge">Опорные издержки · {base_label} шагов за круг</span><span class="badge">Автономный HTML · без интернета</span></div>
 {_links(payload.get("links") or [])}</header>
 <nav aria-label="Разделы отчёта"><a href="#comparison">PnL</a><a href="#risk">Просадки</a><a href="#months">Месяцы</a><a href="#maps">Тепловые карты</a><a href="#execution">Затраты</a><a href="#results">Таблица</a><a href="#forward">Последовательная проверка</a><a href="#data">Данные</a></nav>
 <div class="stat-grid">{card_html}</div>
 <aside class="method"><strong>Как читать результат</strong><p>Фиксированные пары отбираются только на периоде разработки {development_label}. Контроль с {control_label} не участвует в выборе порогов. Порядок кривых и таблицы задан отбором на разработке; значение контрольного PnL не определяет порядок. Пар, прошедших условия отбора на разработке: <strong>{_display(meta.get('training_eligible_pairs'))}</strong>.</p>
-<p>Единицы PnL: <strong>{units}</strong>; это не рубли. PnL после затрат включает принятую модель исполнения. {disclaimer}</p></aside>
+{entry_rule}<p>Единицы PnL: <strong>{units}</strong>; это не рубли. PnL после затрат включает принятую модель исполнения. {disclaimer}</p></aside>
 <section id="comparison"><div class="section-heading"><span class="index">01</span><div><h2>Накопленный результат</h2><p>Каждая линия — фиксированная пара порогов. Пунктир отмечает начало контроля.</p></div></div>
 <p class="hint">Щелчок по легенде включает или скрывает линию; двойной щелчок оставляет одну. Выделение мышью приближает участок, двойной щелчок по графику возвращает масштаб. Первые пять пар включены по умолчанию.</p>
 {_chart(figures, "equity")}<h3>Контрольный участок отдельно</h3><p class="hint">Накопленная прибыль периода подбора обнулена. Пары и их порядок сохранены.</p>{_chart(figures, "holdout-equity")}</section>

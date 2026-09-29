@@ -11,6 +11,7 @@
 | `tick_to_delta_bars.py` | Конвертация тиков в адаптивные дельта-бары SQLite. |
 | `chart_delta_bars.py` | Просмотр свечей, индикаторов, объёма и длительности. |
 | `backtest_duration.py` | Проверка стратегии по длительности баров и построение отчётов PnL. |
+| `backtest_duration_reversed.py` | Та же проверка с противоположным направлением каждой разрешённой сделки. |
 | `patch_finplot.py` | Однократное исправление совместимости установленного finplot с русской локалью; также вызывается из `start_chart.cmd`. |
 
 ```text
@@ -18,9 +19,11 @@ pj24_delta_bars/
 ├── tick_to_delta_bars.py
 ├── chart_delta_bars.py
 ├── backtest_duration.py
+├── backtest_duration_reversed.py
 ├── patch_finplot.py
 ├── start_chart.cmd
 ├── start_backtest.cmd
+├── start_backtest_reversed.cmd
 ├── source/                   # вспомогательные модули
 │   ├── __init__.py
 │   ├── delta_core.py         # расчёт дельта-баров
@@ -201,6 +204,30 @@ finally:
 Запуск: `start_backtest.cmd` или `.\.venv\Scripts\python.exe backtest_duration.py`.
 
 По умолчанию RTS и MIX проверяются отдельно: вход — длительность завершённого бара меньше порога 1…45 секунд с шагом 1; выход — больше порога 5…300 секунд с шагом 5. Проверяются пары с порогом выхода больше порога входа. Сравниваются сценарии издержек 0, 2, 4 и 8 шагов цены за круг.
+
+**Фильтр ALF включён по умолчанию:** покупка требует растущего сигнального бара с `close > ALF`, продажа — падающего с `close < ALF`. При равенстве входа нет. ALF и его прогрев совпадают с просмотрщиком при одинаковом α (по умолчанию 0,4). Сделка исполняется на следующем тике; выход по длительности сохраняется.
+
+```powershell
+# Новый вариант: длительность + направление бара + сторона ALF
+.\.venv\Scripts\python.exe backtest_duration.py --symbols RTS MIX --entry-filter alf --alf-alpha 0.4
+
+# Прежний вариант для сравнения
+.\.venv\Scripts\python.exe backtest_duration.py --symbols RTS MIX --entry-filter none
+```
+
+Условия входа и α записываются в отчёт, а close и ALF сигнального бара — в журнал сделок. Кэш исходных событий общий; фильтр применяется заново при каждом запуске.
+
+Для обратных входов используйте отдельный скрипт или `start_backtest_reversed.cmd`:
+
+```powershell
+.\.venv\Scripts\python.exe backtest_duration_reversed.py
+.\.venv\Scripts\python.exe backtest_duration_reversed.py --symbols RTS
+.\.venv\Scripts\python.exe backtest_duration_reversed.py --symbols MIX --entry-filter none
+```
+
+В обратном варианте разрешённый сигнал покупки открывает продажу, а сигнал продажи — покупку. При включённом ALF это **Short после быстрого растущего бара выше ALF**, **Long после быстрого падающего бара ниже ALF**. Отбор по ALF выполняется до разворота. Длительность, исполнение на следующем тике, выходы и ограничение одной позиции сохраняются. Издержки снова вычитаются из валового PnL.
+
+Результаты обратного варианта по умолчанию находятся в `C:\data_quote\duration_backtests_reversed\run_...`. В HTML и метаданных явно указано направление входов. Все остальные параметры совпадают с обычным бэктестом; `--output-dir` позволяет изменить папку результатов.
 
 Отчёты сохраняются в новой подпапке `C:\data_quote\duration_backtests\run_...`: `index.html` открывает графики PnL, просадки и сравнение параметров для каждого инструмента. Тестер и просмотрщик по умолчанию читают отдельные `RTS_delta_bars.sqlite3` и `MIX_delta_bars.sqlite3`; для общей базы используйте `--db` вместе с одним `--symbols RTS` или `--symbols MIX` у тестера.
 

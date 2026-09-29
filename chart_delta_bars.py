@@ -1,4 +1,4 @@
-"""Интерактивный график дельта-баров RTS/MIX из SQLite на finplot и PyQt6.
+r"""Интерактивный график дельта-баров RTS/MIX из SQLite на finplot и PyQt6.
 
 Примеры запуска из папки проекта:
     .\.venv\Scripts\python.exe chart_delta_bars.py
@@ -6,8 +6,8 @@
 
     python chart_delta_bars.py
     python chart_delta_bars.py --symbol MIX --start 2026-09-01 --end 2026-09-28
-    python chart_delta_bars.py --symbol RTS --db C:\\data_quote\\RTS_delta_bars.sqlite3
-    python chart_delta_bars.py --symbol MIX --db C:\\data_quote\\MIX_delta_bars.sqlite3
+    python chart_delta_bars.py --symbol RTS --db C:\data_quote\RTS_delta_bars.sqlite3
+    python chart_delta_bars.py --symbol MIX --db C:\data_quote\MIX_delta_bars.sqlite3
 Зависимости: python -m pip install -r requirements-chart.txt
 Базы открываются только для чтения; индикаторы рассчитываются при просмотре.
 """
@@ -24,7 +24,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 import pyqtgraph as pg
 import finplot as fplt
 
-from chart_data import SIGNALS, inspect_database, load_bars
+from source.chart_data import SIGNALS, inspect_database, load_bars
 
 DEFAULT_DATA_DIR = Path(r"C:\data_quote")
 

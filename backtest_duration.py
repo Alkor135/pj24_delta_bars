@@ -4,9 +4,12 @@
     python backtest_duration.py
     python backtest_duration.py --symbols RTS --entry-grid 1:45:1 --exit-grid 5:300:5
     python backtest_duration.py --symbols MIX --costs 0,2,4,8 --base-cost 4
+    python backtest_duration.py --symbols RTS --entry-filter alf --alf-alpha 0.4
+    python backtest_duration.py --symbols RTS --entry-filter none
     python backtest_duration.py --session-start 10:00 --entry-end 18:30 --close-time 18:40
 
 Издержки задаются в шагах цены за полный круг, PnL — в пунктах на один контракт.
+По умолчанию вход дополнительно требует close выше ALF для Long и ниже для Short.
 Базы и тиковые ZIP не изменяются. Каждый запуск создаёт отдельный каталог отчёта.
 """
 
@@ -21,8 +24,8 @@ import sqlite3
 import sys
 import numpy as np
 import pandas as pd
-from source.duration_engine import parameter_grid,simulate_grid,simulate_one
-from source.duration_data import Session,prepare_database
+from source.duration_engine import parameter_grid,simulate_grid,simulate_one,reverse_directions
+from source.duration_data import Session,EntryFilter,prepare_database
 from source.duration_analysis import grid_statistics,rank_parameters,comparison_indices,walk_forward,trade_metrics,drawdown
 
 
@@ -162,9 +165,9 @@ def save_tables(folder,grid,payload,tables):
     (folder/'summary.json').write_text(json.dumps(payload['summary'],ensure_ascii=False,indent=2),encoding='utf-8')
 
 
-def arguments():
-    """Задаёт изменяемые диапазоны, часы и сценарии затрат исследования."""
-    parser=argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter)
+def arguments(argv=None, *, reverse=False, description=None):
+    """Задаёт параметры и папку результатов для обычной либо обратной точки запуска."""
+    parser=argparse.ArgumentParser(description=description or __doc__,formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--symbols',nargs='+',choices=['RTS','MIX'],default=['RTS','MIX'])
     parser.add_argument('--data-dir',type=Path,default=Path('C:/data_quote'))
     parser.add_argument('--db',type=Path,help='Явная база: допускается с одним символом')
@@ -173,6 +176,9 @@ def arguments():
     parser.add_argument('--end',default='9999-12-31')
     parser.add_argument('--entry-grid',default='1:45:1')
     parser.add_argument('--exit-grid',default='5:300:5')
+    parser.add_argument('--entry-filter',choices=['alf','none'],default='alf',
+                        help='Фильтр исходных сигналов до разворота: alf — направление бара и сторона ALF совпадают; none — без ALF')
+    parser.add_argument('--alf-alpha',type=float,default=0.4,help='Параметр ALF, как в просмотрщике: 0 < α <= 1')
     parser.add_argument('--costs',default='0,2,4,8',help='Шаги цены за вход и выход вместе')
     parser.add_argument('--base-cost',type=float,default=4)
     parser.add_argument('--tick-size',type=float,help='Переопределение шага цены для одного символа')
@@ -182,14 +188,15 @@ def arguments():
     parser.add_argument('--holdout-start',default='2026-01-01')
     parser.add_argument('--min-trades',type=int,default=100)
     parser.add_argument('--top',type=int,default=5)
-    parser.add_argument('--output-dir',type=Path,default=Path('C:/data_quote/duration_backtests'))
+    parser.add_argument('--output-dir',type=Path,default=Path('C:/data_quote')/
+                        ('duration_backtests_reversed' if reverse else 'duration_backtests'))
     parser.add_argument('--cache-dir',type=Path,default=Path(__file__).resolve().parent/'.duration_cache')
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
-def main():
-    """Запускает исследование, сохраняет отдельный отчёт каждого инструмента и общий индекс."""
-    args=arguments()
+def main(*, reverse=False, description=None):
+    """Запускает обычные либо обратные входы с общими условиями и отдельным отчётом."""
+    args=arguments(reverse=reverse,description=description)
     if len(args.symbols)!=len(set(args.symbols)):
         raise ValueError('Символы не должны повторяться')
     if len(args.symbols)!=1 and (args.db or args.tick_size is not None):
@@ -205,15 +212,30 @@ def main():
     if len(params)>100000:
         raise ValueError('Сетка слишком велика: максимум 100000 пар')
     session=Session(args.session_start,args.entry_end,args.close_time)
+    entry_filter=EntryFilter(args.entry_filter,args.alf_alpha)
     run=args.output_dir/('run_'+datetime.now().strftime('%Y%m%d_%H%M%S_%f'))
     run.mkdir(parents=True,exist_ok=False)
     report_links=[]
+    direction_label='обратное' if reverse else 'прямое'
+    entry_rule=entry_filter.describe(reverse=reverse)
+    entry_script='backtest_duration_reversed.py' if reverse else 'backtest_duration.py'
+    print(f'Направление входов: {direction_label}.',flush=True)
+    print(entry_rule,flush=True)
     from source.duration_report import write_report
     for symbol in args.symbols:
         db=args.db or args.data_dir/(symbol+'_delta_bars.sqlite3')
-        days,coverage,meta=prepare_database(db,symbol,session,args.cache_dir,args.start,args.end,args.dataset_id)
+        days,coverage,meta=prepare_database(db,symbol,session,args.cache_dir,args.start,args.end,args.dataset_id,
+                                         entry_filter=entry_filter)
+        if reverse:
+            days=reverse_directions(days)
+        meta.update(position_direction=direction_label,direction_multiplier=-1 if reverse else 1,
+                    entry_rule=entry_rule,entry_script=entry_script)
+        implementation_files=['backtest_duration.py','source/duration_engine.py','source/duration_data.py',
+                              'source/chart_data.py','source/duration_analysis.py','source/duration_report.py']
+        if reverse:
+            implementation_files.append(entry_script)
         meta['implementation_sha256']={name:sha256((Path(__file__).resolve().parent/name).read_bytes()).hexdigest()
-            for name in ('backtest_duration.py','source/duration_engine.py','source/duration_data.py','source/duration_analysis.py','source/duration_report.py')}
+            for name in implementation_files}
         tick_size=args.tick_size if args.tick_size is not None else {'RTS':10.0,'MIX':25.0}[symbol]
         if not np.isfinite(tick_size) or tick_size<=0:
             raise ValueError('Шаг цены должен быть положительным')
@@ -236,6 +258,7 @@ def main():
         '<style>body{font:18px Segoe UI,sans-serif;max-width:900px;margin:60px auto;background:#f4f7fb;color:#17283d}'
         'li{margin:24px 0}a{color:#165ab6}</style><h1>Стратегия длительности дельта-баров</h1>'
         '<p>Вход 1–45 с, выход 5–300 с по умолчанию. Точные настройки внутри отчёта каждого инструмента.</p>'
+        f'<p>Направление входов: <strong>{direction_label}</strong>.</p><p>{html.escape(entry_rule)}</p>'
         '<p>PnL в пунктах на один контракт. Сценарии издержек — предположения для сравнения.</p><ul>'+links+'</ul></html>',encoding='utf-8')
     print(f'Готово: {run / "index.html"}',flush=True)
 

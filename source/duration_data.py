@@ -5,7 +5,7 @@
 Исходные базы и архивы открываются только для чтения.
 """
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from contextlib import closing
 from datetime import time
 import gzip
@@ -18,8 +18,61 @@ from zipfile import ZipFile
 import numpy as np
 import pandas as pd
 from .duration_engine import Day, Event
+from .chart_data import laguerre
 
 CACHE_VERSION = 1
+
+
+@dataclass(frozen=True)
+class EntryFilter:
+    """Выбирает дополнительный фильтр входа и параметр ALF просмотрщика."""
+    mode: str = 'alf'
+    alpha: float = 0.4
+
+    def __post_init__(self):
+        """Проверяет режим и допустимый диапазон параметра Лагерра."""
+        if self.mode not in ('none', 'alf'):
+            raise ValueError('Фильтр входа должен быть none или alf')
+        if not np.isfinite(self.alpha) or not 0 < self.alpha <= 1:
+            raise ValueError('Параметр ALF α должен быть больше 0 и не больше 1')
+
+    def describe(self, reverse=False):
+        """Описывает фактическую сторону сделки после обычного либо обратного входа."""
+        rising, falling = ('Short', 'Long') if reverse else ('Long', 'Short')
+        rule = (f'Длительность завершённого бара < порога входа; {rising} при close > open, '
+                f'{falling} при close < open.')
+        if self.mode == 'alf':
+            rule += (f' Фильтр ALF (α={self.alpha:g}): {rising} только при close > ALF, '
+                     f'{falling} только при close < ALF; при равенстве входа нет.')
+        else:
+            rule += ' Фильтр ALF отключён.'
+        return rule + ' Исполнение на следующем тике. Выход по длительности не зависит от ALF.'
+
+
+def apply_entry_filter(day, bars, settings):
+    """Фильтрует входы по завершённым барам, сохраняя выходы и исходные события кэша."""
+    if bars.bar_index.duplicated().any():
+        raise ValueError(f'{day.date}: повторные номера сигнальных баров')
+    lookup = bars.set_index('bar_index')
+    if settings.mode == 'alf' and ('alf' not in lookup or not np.isfinite(lookup.alf).all()):
+        raise ValueError(f'{day.date}: отсутствуют конечные значения ALF')
+    events = []
+    for event in day.events:
+        if event.signal_bar < 0:
+            events.append(replace(event))
+            continue
+        if event.signal_bar not in lookup.index:
+            raise ValueError(f'{day.date}: не найден сигнальный бар {event.signal_bar}')
+        bar = lookup.loc[event.signal_bar]
+        close = float(bar.close)
+        alf = float(bar.alf) if settings.mode == 'alf' else None
+        if not np.isfinite(close):
+            raise ValueError(f'{day.date}: некорректное закрытие сигнального бара')
+        allowed = (alf is None or (event.direction > 0 and close > alf)
+                   or (event.direction < 0 and close < alf))
+        events.append(replace(event, enter=bool(event.enter and allowed),
+                              signal_close=close, signal_alf=alf))
+    return Day(day.date, events)
 
 
 @dataclass(frozen=True)
@@ -109,8 +162,10 @@ def build_day(date, bars, ticks, session):
     return Day(date,events),audit
 
 
-def prepare_database(path, symbol, session, cache_dir, start='2022-01-01', end='9999-12-31', dataset_id=None, progress=print):
-    """Читает выбранный набор, проверяет источники и кэширует воспроизводимые события."""
+def prepare_database(path, symbol, session, cache_dir, start='2022-01-01', end='9999-12-31', dataset_id=None,
+                     progress=print, entry_filter=None):
+    """Проверяет сырые события и применяет ALF с прогревом на истории до начала теста."""
+    entry_filter = entry_filter or EntryFilter()
     path=Path(path).resolve()
     if not path.is_file():
         raise ValueError(f'Нет базы: {path}')
@@ -129,8 +184,19 @@ def prepare_database(path, symbol, session, cache_dir, start='2022-01-01', end='
                               db,params=(symbol,dataset_id,start,end))
         sources=pd.read_sql_query("SELECT * FROM days WHERE symbol=? AND dataset_id=? AND day>=? AND day<=? AND status='ready' ORDER BY day",
                                  db,params=(symbol,dataset_id,start,end))
+        history = None
+        if entry_filter.mode == 'alf':
+            history = pd.read_sql_query('SELECT day,bar_index,close FROM bars WHERE symbol=? AND dataset_id=? '
+                'AND day<=? ORDER BY day,bar_index', db, params=(symbol, dataset_id, end))
     if bars.empty:
         raise ValueError(f'{symbol}: нет баров в заданном диапазоне')
+    alf_by_day = {}
+    if history is not None:
+        if history.duplicated(['day', 'bar_index']).any() or not np.isfinite(history.close).all():
+            raise ValueError(f'{symbol}: некорректная история для расчёта ALF')
+        # Ровно та же рекурсия, порядок и дневные остатки, что в просмотрщике.
+        history['alf'] = laguerre(history.close.to_numpy(), entry_filter.alpha)
+        alf_by_day = {day: frame.set_index('bar_index').alf for day, frame in history.groupby('day', sort=False)}
     grouped={day:frame for day,frame in bars.groupby('day',sort=False)}
     prepared,audits=[],[]
     cache_dir=Path(cache_dir)/symbol
@@ -162,15 +228,24 @@ def prepare_database(path, symbol, session, cache_dir, start='2022-01-01', end='
                 json.dump(dict(audit=audit,events=[asdict(x) for x in day.events] if day else None),f,ensure_ascii=False)
             temp.replace(cache)
         if day is not None:
-            prepared.append(day)
+            # На диске остаются исходные события без фильтра. Сторона ALF всегда
+            # проверяется заново, в том числе после изменения α или истории прогрева.
+            signal_bars = frame.assign(alf=frame.bar_index.map(alf_by_day[source.day])) if history is not None else frame
+            prepared.append(apply_entry_filter(day, signal_bars, entry_filter))
         audits.append(audit)
         if progress and ((index+1)%100==0 or index+1==len(sources)):
             progress(f'{symbol}: проверены источники {index+1}/{len(sources)}',flush=True)
     if not prepared:
         raise ValueError('Нет дней с исполнимым закрытием по времени')
     metadata=dict(db=str(path),symbol=symbol,dataset_id=dataset_id,bar_config=config,
+        entry_filter=asdict(entry_filter),entry_rule=entry_filter.describe(),
         session=asdict(session),source_first_day=str(bars.day.min()),source_last_day=str(bars.day.max()),
         source_bars=len(bars),included_days=len(prepared),excluded_days=len(audits)-len(prepared),
         source_manifest_sha256=sha256(sources[['day','sha256']].to_json(orient='records').encode()).hexdigest(),
         bars_sha256=sha256(bars.to_json(orient='split',double_precision=15).encode()).hexdigest())
+    if history is not None:
+        metadata.update(alf_history_start=str(history.day.iloc[0]),
+            alf_warmup_bars=int((history.day < start).sum()),
+            alf_history_sha256=sha256(history[['day','bar_index','close']].to_json(
+                orient='records',double_precision=15).encode()).hexdigest())
     return prepared,audits,metadata

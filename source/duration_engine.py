@@ -4,7 +4,7 @@
 Проверки: python -m unittest -v tests.test_duration_engine
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import numpy as np
 
 
@@ -20,6 +20,8 @@ class Event:
     exit: bool = False
     force: bool = False
     signal_bar: int = -1
+    signal_close: float | None = None
+    signal_alf: float | None = None
 
 
 @dataclass
@@ -44,6 +46,12 @@ class SingleResult:
     trades: list
     daily: list
     equity: list
+
+
+def reverse_directions(days):
+    """Меняет сторону уже отобранных входов, сохраняя события и исходные объекты."""
+    return [Day(day.date, [replace(event, direction=-event.direction) for event in day.events])
+            for day in days]
 
 
 def parameter_grid(entries, exits):
@@ -105,13 +113,15 @@ def simulate_one(days, entry, exit, cost_points=0):
                     entry_price=opening['price'],exit_price=event.price,
                     entry_duration=opening['duration'],exit_duration=event.duration,
                     entry_signal_bar=opening['signal_bar'],exit_signal_bar=event.signal_bar,
+                    entry_signal_close=opening['signal_close'],entry_signal_alf=opening['signal_alf'],
                     reason='time' if event.force else 'duration',gross_pnl=pnl,
                     cost_points=cost_points,net_pnl=pnl-cost_points))
                 position = 0
             if was_flat and event.enter and not event.force and event.direction and event.duration < entry:
                 position = event.direction
                 opening = dict(time=event.time,row=event.row,price=event.price,
-                               duration=event.duration,signal_bar=event.signal_bar)
+                               duration=event.duration,signal_bar=event.signal_bar,
+                               signal_close=event.signal_close,signal_alf=event.signal_alf)
                 sides += 1
             unrealized = position*(event.price-opening['price']) if position else 0.0
             equity.append(dict(day=day.date,time=event.time,row=event.row,
