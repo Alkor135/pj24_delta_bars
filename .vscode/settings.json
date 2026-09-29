@@ -8,5 +8,8 @@
         "./tests",
         "-t",
         "."
+    ],
+    "python.analysis.extraPaths": [
+        "./source"
     ]
 }
