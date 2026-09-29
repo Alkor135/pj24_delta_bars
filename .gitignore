@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Кэш проверки тиков для тестера длительности
+.duration_cache/
