@@ -1,6 +1,9 @@
 r"""Интерактивный график дельта-баров RTS/MIX из SQLite на finplot и PyQt6.
 
 Примеры запуска из папки проекта:
+    Выбор общей базы:
+    .\.venv\Scripts\python.exe chart_delta_bars.py --db "C:\data_quote\delta_bars.sqlite3"
+
     .\.venv\Scripts\python.exe chart_delta_bars.py
     .\.venv\Scripts\python.exe chart_delta_bars.py --symbol MIX
 
@@ -35,7 +38,7 @@ def configure_plot():
     fplt.foreground = "#334155"
     fplt.odd_plot_background = "#f8fafc"
     fplt.candle_bull_color = "#13a89e"
-    fplt.candle_bull_body_color = "#ffffff"
+    fplt.candle_bull_body_color = "#13a89e"  # "#ffffff"
     fplt.candle_bear_color = "#ef5350"
     fplt.candle_bear_body_color = "#ef5350"
     fplt.volume_bull_color = "#9bd7d1"
