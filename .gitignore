@@ -219,3 +219,5 @@ __marimo__/
 
 # Кэш проверки тиков для тестера длительности
 .duration_cache/
+results/stochastic/
+results/heikin_ashi/
