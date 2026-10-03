@@ -13,6 +13,8 @@ r"""Интерактивный график дельта-баров RTS/MIX из
     python chart_delta_bars.py --symbol MIX --db C:\data_quote\MIX_delta_bars.sqlite3
 Зависимости: python -m pip install -r requirements-chart.txt
 Базы открываются только для чтения; индикаторы рассчитываются при просмотре.
+«Длительность» показывает серые столбики от нуля до длительности каждого бара
+в минутах на нижней панели, связанной со свечами по оси X.
 """
 
 import argparse
@@ -77,10 +79,14 @@ class BarTimeAxis(pg.AxisItem):
 
 
 class ChartCanvas(pg.GraphicsLayoutWidget):
-    """Встраивает свечи finplot, объёмы, сигналы и связанную панель длительности."""
+    """Встраивает свечи finplot, объёмы, сигналы и столбики длительности баров."""
 
     def __init__(self, owner, data, alpha, offset):
-        """Создаёт оси и графические объекты для одной успешно загруженной выборки."""
+        """Создаёт свечи и связанную с ними столбчатую панель длительности в минутах.
+
+        owner — окно с карточкой бара; data — загруженные бары и индикаторы;
+        alpha — коэффициент ALF для легенды; offset — отступ сигнальных меток.
+        """
         super().__init__(parent=owner)
         self.owner, self.data = owner, data
         self.title = "Дельта-бары"
@@ -132,8 +138,13 @@ class ChartCanvas(pg.GraphicsLayoutWidget):
                 axis.addItem(line, ignoreBounds=True)
                 self.day_lines.append(line)
         minutes = (data.duration_seconds / 60).rename("duration_minutes")
-        self.duration_item = fplt.plot(data.x, minutes, color="#64748b", width=1,
-                                       ax=self.duration_axis, legend="Длительность бара, мин")
+        duration_data = data[["x", "open", "close"]].assign(duration_minutes=minutes)
+        self.duration_item = fplt.volume_ocv(duration_data, candle_width=0.8, ax=self.duration_axis)
+        self.duration_item.colors.update(bull_frame="#64748b", bull_body="#64748b",
+                                         bear_frame="#64748b", bear_body="#64748b")
+        # При отдалении графика длительности отдельных баров не суммируются.
+        self.duration_item.resamp = None
+        fplt.add_legend("Длительность бара, мин", ax=self.duration_axis)
         fplt.refresh()
 
     @property
