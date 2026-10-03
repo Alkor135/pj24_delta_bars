@@ -1,9 +1,10 @@
 """Исторический тест цвета Heikin Ashi на дельта-барах без других индикаторов.
 
 Примеры запуска из корня проекта:
-    python backtest_heikin_ashi.py
-    python backtest_heikin_ashi.py --symbols RTS --start 2026-09-01 --end 2026-09-30
-    python backtest_heikin_ashi.py --confirmations 1,2 --costs 0,2,4,8 --base-cost 4
+    python backtest/backtest_heikin_ashi.py
+    python backtest/backtest_heikin_ashi.py --symbols RTS --start 2026-09-01 --end 2026-09-30
+    python backtest/backtest_heikin_ashi.py --confirmations 1,2 --costs 0,2,4,8 --base-cost 4
+    python -m backtest.backtest_heikin_ashi --help
     python -m unittest -v tests.test_backtest_heikin_ashi
 
 HA-close = (O+H+L+C)/4, HA-open = (предыдущие HA-open+HA-close)/2.
@@ -21,6 +22,8 @@ PnL — пункты одного контракта, затраты — шаг�
 включая всю историю прогрева до --start; сделки возможны только в start–end.
 Таблицы, контрольные суммы и автономный HTML сохраняются в results/heikin_ashi.
 Подбора параметров нет; история с 2026 года разбивается на календарные годы.
+Пути исходников для SHA256 определяются от корня проекта, относительный
+--output — от текущей рабочей папки, в том числе при запуске по абсолютному пути.
 """
 
 import argparse
@@ -33,12 +36,17 @@ from pathlib import Path
 import sqlite3
 import sys
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if __package__ in (None, ""):
+    # Соседний бэктест и source импортируются независимо от рабочей папки.
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.offline import get_plotlyjs
 
-from backtest_stochastic import _path_metrics, _summarize, _table, report_periods, validate_extremes
+from backtest.backtest_stochastic import _path_metrics, _summarize, _table, report_periods, validate_extremes
 from source.duration_data import Session, build_day, read_tick_zip
 
 
@@ -317,7 +325,11 @@ def parse_args(argv=None):
 
 
 def main(argv=None):
-    """Выполняет тест по argv, сохраняет результаты и возвращает путь HTML-отчёта."""
+    """Выполняет тест по argv, сохраняет результаты и возвращает путь HTML-отчёта.
+
+    argv — список аргументов либо None для CLI. SHA256 исходников читаются
+    от PROJECT_ROOT; относительный --output считается от рабочей папки.
+    """
     args = parse_args(argv)
     session = Session()
     stamp = datetime.now(timezone(timedelta(hours=3))).strftime("%Y%m%d_%H%M%S_%f")
@@ -325,8 +337,8 @@ def main(argv=None):
     folder.mkdir(parents=True, exist_ok=False)
     metadata = dict(settings={key: str(value) if isinstance(value, Path) else value
         for key, value in vars(args).items()}, session=vars(session), units="пункты на один контракт",
-        limitations=LIMITATIONS, datasets=[], implementation_sha256={str(p): sha256(p.read_bytes()).hexdigest()
-        for p in (Path(__file__), Path("backtest_stochastic.py"), Path("source/duration_data.py"))})
+        limitations=LIMITATIONS, datasets=[], implementation_sha256={name: sha256((PROJECT_ROOT / name).read_bytes()).hexdigest()
+        for name in ("backtest/backtest_heikin_ashi.py", "backtest/backtest_stochastic.py", "source/duration_data.py")})
     all_trades, all_daily, coverage, summary = [], [], [], []
     for symbol in dict.fromkeys(args.symbols):
         tick_size = {"RTS": 10, "MIX": 25}[symbol]

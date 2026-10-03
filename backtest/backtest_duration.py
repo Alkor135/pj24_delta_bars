@@ -1,16 +1,19 @@
 """Проверка стратегии длительности дельта-баров RTS/MIX и сравнение графиков PnL.
 
 Примеры запуска из папки проекта:
-    python backtest_duration.py
-    python backtest_duration.py --symbols RTS --entry-grid 1:45:1 --exit-grid 5:300:5
-    python backtest_duration.py --symbols MIX --costs 0,2,4,8 --base-cost 4
-    python backtest_duration.py --symbols RTS --entry-filter alf --alf-alpha 0.4
-    python backtest_duration.py --symbols RTS --entry-filter none
-    python backtest_duration.py --session-start 10:00 --entry-end 18:30 --close-time 18:40
+    python backtest/backtest_duration.py
+    python backtest/backtest_duration.py --symbols RTS --entry-grid 1:45:1 --exit-grid 5:300:5
+    python backtest/backtest_duration.py --symbols MIX --costs 0,2,4,8 --base-cost 4
+    python backtest/backtest_duration.py --symbols RTS --entry-filter alf --alf-alpha 0.4
+    python backtest/backtest_duration.py --symbols RTS --entry-filter none
+    python backtest/backtest_duration.py --session-start 10:00 --entry-end 18:30 --close-time 18:40
+    python -m backtest.backtest_duration --help
 
 Издержки задаются в шагах цены за полный круг, PnL — в пунктах на один контракт.
 По умолчанию вход дополнительно требует close выше ALF для Long и ниже для Short.
 Базы и тиковые ZIP не изменяются. Каждый запуск создаёт отдельный каталог отчёта.
+Кэш .duration_cache и исходники для SHA256 определяются от корня проекта;
+относительные пользовательские пути — от текущей рабочей папки.
 """
 
 import argparse
@@ -22,6 +25,12 @@ import json
 from pathlib import Path
 import sqlite3
 import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if __package__ in (None, ""):
+    # Прямой запуск файла из backtest должен видеть оба пакета проекта.
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import numpy as np
 import pandas as pd
 from source.duration_engine import parameter_grid,simulate_grid,simulate_one,reverse_directions
@@ -166,7 +175,11 @@ def save_tables(folder,grid,payload,tables):
 
 
 def arguments(argv=None, *, reverse=False, description=None):
-    """Задаёт параметры и папку результатов для обычной либо обратной точки запуска."""
+    """Возвращает параметры запуска, сохраняя стандартный кэш в корне проекта.
+
+    argv — аргументы либо None для sys.argv; reverse выбирает обратную
+    стратегию, description заменяет описание справки. Результат — Namespace.
+    """
     parser=argparse.ArgumentParser(description=description or __doc__,formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--symbols',nargs='+',choices=['RTS','MIX'],default=['RTS','MIX'])
     parser.add_argument('--data-dir',type=Path,default=Path('C:/data_quote'))
@@ -190,12 +203,17 @@ def arguments(argv=None, *, reverse=False, description=None):
     parser.add_argument('--top',type=int,default=5)
     parser.add_argument('--output-dir',type=Path,default=Path('C:/data_quote')/
                         ('duration_backtests_reversed' if reverse else 'duration_backtests'))
-    parser.add_argument('--cache-dir',type=Path,default=Path(__file__).resolve().parent/'.duration_cache')
+    parser.add_argument('--cache-dir',type=Path,default=PROJECT_ROOT/'.duration_cache')
     return parser.parse_args(argv)
 
 
 def main(*, reverse=False, description=None):
-    """Запускает обычные либо обратные входы с общими условиями и отдельным отчётом."""
+    """Запускает исследование по CLI и сохраняет отчёты с SHA256 исходников проекта.
+
+    reverse выбирает противоположные входы, description заменяет описание
+    справки. Пути исходников определяются от PROJECT_ROOT независимо от cwd.
+    Создаёт файлы результатов, печатает их пути и возвращает None.
+    """
     args=arguments(reverse=reverse,description=description)
     if len(args.symbols)!=len(set(args.symbols)):
         raise ValueError('Символы не должны повторяться')
@@ -218,7 +236,7 @@ def main(*, reverse=False, description=None):
     report_links=[]
     direction_label='обратное' if reverse else 'прямое'
     entry_rule=entry_filter.describe(reverse=reverse)
-    entry_script='backtest_duration_reversed.py' if reverse else 'backtest_duration.py'
+    entry_script='backtest/backtest_duration_reversed.py' if reverse else 'backtest/backtest_duration.py'
     print(f'Направление входов: {direction_label}.',flush=True)
     print(entry_rule,flush=True)
     from source.duration_report import write_report
@@ -230,11 +248,11 @@ def main(*, reverse=False, description=None):
             days=reverse_directions(days)
         meta.update(position_direction=direction_label,direction_multiplier=-1 if reverse else 1,
                     entry_rule=entry_rule,entry_script=entry_script)
-        implementation_files=['backtest_duration.py','source/duration_engine.py','source/duration_data.py',
+        implementation_files=['backtest/backtest_duration.py','source/duration_engine.py','source/duration_data.py',
                               'source/chart_data.py','source/duration_analysis.py','source/duration_report.py']
         if reverse:
             implementation_files.append(entry_script)
-        meta['implementation_sha256']={name:sha256((Path(__file__).resolve().parent/name).read_bytes()).hexdigest()
+        meta['implementation_sha256']={name:sha256((PROJECT_ROOT/name).read_bytes()).hexdigest()
             for name in implementation_files}
         tick_size=args.tick_size if args.tick_size is not None else {'RTS':10.0,'MIX':25.0}[symbol]
         if not np.isfinite(tick_size) or tick_size<=0:

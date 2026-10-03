@@ -5,7 +5,7 @@
 
 Примеры запуска из корня проекта:
     python -m unittest tests.test_duration_report -v
-    python backtest_duration.py --symbols RTS MIX
+    python backtest/backtest_duration.py --symbols RTS MIX
 """
 
 from datetime import date, datetime

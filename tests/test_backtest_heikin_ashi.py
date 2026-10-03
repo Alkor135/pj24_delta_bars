@@ -7,6 +7,7 @@
 повреждённый экстремум обязан остановить запуск до моделирования сделок.
 Запуск из корня: python -m unittest -v tests.test_backtest_heikin_ashi
 Все проверки: python -m unittest discover -s tests -v
+Исследовательский скрипт импортируется из пакета backtest.
 """
 
 import importlib.util
@@ -22,8 +23,8 @@ import zipfile
 import numpy as np
 import pandas as pd
 
-if importlib.util.find_spec("backtest_heikin_ashi") is not None:
-    from backtest_heikin_ashi import heikin_ashi_frame, color_targets, simulate_day, _load_database, main
+if importlib.util.find_spec("backtest.backtest_heikin_ashi") is not None:
+    from backtest.backtest_heikin_ashi import heikin_ashi_frame, color_targets, simulate_day, _load_database, main
 
 
 def sample_bars():
@@ -54,8 +55,8 @@ class HeikinAshiTests(unittest.TestCase):
 
     def setUp(self):
         """Требует исследовательский скрипт; его отсутствие даёт понятный провал."""
-        self.assertIsNotNone(importlib.util.find_spec("backtest_heikin_ashi"),
-                             "Нужен backtest_heikin_ashi.py")
+        self.assertIsNotNone(importlib.util.find_spec("backtest.backtest_heikin_ashi"),
+                             "Нужен backtest/backtest_heikin_ashi.py")
 
     def test_recursive_formula(self):
         """Средние цены и рекурсивное открытие совпадают с ручным расчётом."""

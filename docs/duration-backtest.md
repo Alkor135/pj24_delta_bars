@@ -3,34 +3,34 @@
 Запуск двойным щелчком: `start_backtest.cmd`. Из терминала VS Code в папке проекта:
 
 ```powershell
-.\.venv\Scripts\python.exe backtest_duration.py
-.\.venv\Scripts\python.exe backtest_duration.py --symbols RTS
-.\.venv\Scripts\python.exe backtest_duration.py --symbols MIX --entry-grid 1:45:1 --exit-grid 5:300:5
+.\.venv\Scripts\python.exe backtest/backtest_duration.py
+.\.venv\Scripts\python.exe backtest/backtest_duration.py --symbols RTS
+.\.venv\Scripts\python.exe backtest/backtest_duration.py --symbols MIX --entry-grid 1:45:1 --exit-grid 5:300:5
 
 # ALF включён по умолчанию; α совпадает с начальной настройкой просмотрщика
-.\.venv\Scripts\python.exe backtest_duration.py --symbols RTS MIX --entry-filter alf --alf-alpha 0.4
+.\.venv\Scripts\python.exe backtest/backtest_duration.py --symbols RTS MIX --entry-filter alf --alf-alpha 0.4
 
 # Прежняя стратегия без фильтра ALF для сравнения
-.\.venv\Scripts\python.exe backtest_duration.py --symbols RTS MIX --entry-filter none
+.\.venv\Scripts\python.exe backtest/backtest_duration.py --symbols RTS MIX --entry-filter none
 ```
 
-По умолчанию перебираются 2511 пар: вход от 1 до 45 секунд с шагом 1, выход от 5 до 300 секунд с шагом 5; только выход > вход. Чтобы изменить шаг выхода на 1 секунду: `--exit-grid 2:300:1` (значительно больше пар). Полные команды и значения: `python backtest_duration.py --help`.
+По умолчанию перебираются 2511 пар: вход от 1 до 45 секунд с шагом 1, выход от 5 до 300 секунд с шагом 5; только выход > вход. Чтобы изменить шаг выхода на 1 секунду: `--exit-grid 2:300:1` (значительно больше пар). Полные команды и значения: `python backtest/backtest_duration.py --help`.
 
-В VS Code можно открыть `backtest_duration.py` и выбрать Run Python File, предварительно указав `.venv\Scripts\python.exe` этого проекта. Зависимости устанавливаются командой `.\.venv\Scripts\python.exe -m pip install -r requirements-backtest.txt`.
+В VS Code можно открыть `backtest/backtest_duration.py` и выбрать Run Python File, предварительно указав `.venv\Scripts\python.exe` этого проекта. Зависимости устанавливаются командой `.\.venv\Scripts\python.exe -m pip install -r requirements-backtest.txt`.
 
 ## Обратное направление входов
 
-Отдельная точка запуска — **`backtest_duration_reversed.py`** или `start_backtest_reversed.cmd`. Новый скрипт использует общую модель исполнения, чтобы правила двух вариантов не расходились.
+Отдельная точка запуска — **`backtest/backtest_duration_reversed.py`** или `start_backtest_reversed.cmd`. Новый скрипт использует общую модель исполнения, чтобы правила двух вариантов не расходились.
 
 ```powershell
 # Обратные входы с ALF для обоих инструментов
-.\.venv\Scripts\python.exe backtest_duration_reversed.py
+.\.venv\Scripts\python.exe backtest/backtest_duration_reversed.py
 
 # Только RTS с явно заданными порогами и α
-.\.venv\Scripts\python.exe backtest_duration_reversed.py --symbols RTS --entry-grid 1:45:1 --exit-grid 5:300:5 --alf-alpha 0.4
+.\.venv\Scripts\python.exe backtest/backtest_duration_reversed.py --symbols RTS --entry-grid 1:45:1 --exit-grid 5:300:5 --alf-alpha 0.4
 
 # Обратные входы без фильтра ALF
-.\.venv\Scripts\python.exe backtest_duration_reversed.py --symbols MIX --entry-filter none
+.\.venv\Scripts\python.exe backtest/backtest_duration_reversed.py --symbols MIX --entry-filter none
 ```
 
 Сначала проверяются исходные условия сигнального бара: длительность, направление свечи, сторона ALF и время сессии. Затем **только сторона разрешённой сделки меняется на противоположную**:
@@ -49,7 +49,7 @@
 
 ## Правила
 
-Ниже описан обычный вариант `backtest_duration.py`; обратный вариант меняет только стороны входов по правилам выше.
+Ниже описан обычный вариант `backtest/backtest_duration.py`; обратный вариант меняет только стороны входов по правилам выше.
 
 - Используется один контракт и не более одной позиции. Быстрый **завершённый** бар с длительностью **строго меньше** порога входа даёт Long при **close > open и close > ALF**, Short при **close < open и close < ALF**. Сравнивается закрытие сигнального бара с ALF этого же бара. Doji и равенство close = ALF не дают вход. Быстрый падающий бар выше ALF и растущий ниже ALF пропускаются.
 - `--entry-filter none` отключает только дополнительное условие ALF: остаются направление свечи и длительность, как в прежней стратегии. При `--entry-filter alf` параметр `--alf-alpha` по умолчанию равен **0,4**, допустимо `0 < α <= 1`. В просмотрщике выберите такое же α для сравнения сигналов с графиком.

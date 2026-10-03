@@ -1,6 +1,6 @@
 """Оценка сетки порогов и последовательная проверка без подбора на будущем.
 
-Запуск: python backtest_duration.py --symbols RTS MIX
+Запуск: python backtest/backtest_duration.py --symbols RTS MIX
 Проверки: python -m unittest -v tests.test_duration_analysis
 """
 import numpy as np

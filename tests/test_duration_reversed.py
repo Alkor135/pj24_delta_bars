@@ -2,6 +2,7 @@
 
 Запуск из корня проекта: python -m unittest -v tests.test_duration_reversed
 Используются собственные события; пользовательские котировки не изменяются.
+Точка запуска импортируется из пакета backtest; модель исполнения — из source.
 """
 
 from pathlib import Path
@@ -10,7 +11,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-import backtest_duration as runner
+from backtest import backtest_duration as runner
 from source import duration_engine as engine
 from source.duration_data import EntryFilter, apply_entry_filter
 

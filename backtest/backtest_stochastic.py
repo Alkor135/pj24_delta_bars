@@ -1,10 +1,11 @@
 """Проверка Stochastic (14, 3, 3) с ALF на дельта-барах и исходных тиках.
 
 Примеры запуска из корня проекта:
-    python backtest_stochastic.py
-    python backtest_stochastic.py --symbols RTS --start 2026-09-01 --end 2026-09-30
-    python backtest_stochastic.py --symbols RTS MIX --costs 0,2,4,8 --reward-risk 2
-    python backtest_stochastic.py --period 14 --smooth-k 3 --smooth-d 3 --alf-alpha 0.4
+    python backtest/backtest_stochastic.py
+    python backtest/backtest_stochastic.py --symbols RTS --start 2026-09-01 --end 2026-09-30
+    python backtest/backtest_stochastic.py --symbols RTS MIX --costs 0,2,4,8 --reward-risk 2
+    python backtest/backtest_stochastic.py --period 14 --smooth-k 3 --smooth-d 3 --alf-alpha 0.4
+    python -m backtest.backtest_stochastic --help
     python -m unittest -v tests.test_backtest_stochastic
 
 Вход после пересечения %K уровня 20 вверх либо 80 вниз, подтверждённого %D,
@@ -18,6 +19,8 @@
 Базы и ZIP открываются для чтения; OHLC, число баров и покрытие строк сверяются
 с исходными тиками и журналом. Прогрев виден в покрытии. Отчёты сохраняются
 в results/stochastic; каждый календарный год с 2026 показывается отдельно.
+Пути исходников для SHA256 определяются от корня проекта, относительный
+--output — от текущей рабочей папки, в том числе при запуске по абсолютному пути.
 """
 
 import argparse
@@ -29,6 +32,11 @@ import json
 from pathlib import Path
 import sqlite3
 import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if __package__ in (None, ""):
+    # Пакет source доступен при запуске файла из любой рабочей папки.
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import numpy as np
 import pandas as pd
@@ -397,7 +405,11 @@ def parse_args(argv=None):
 
 
 def main(argv=None):
-    """Выполняет тест по списку argv, сохраняет таблицы и возвращает путь отчёта."""
+    """Выполняет тест по argv, сохраняет таблицы и возвращает путь HTML-отчёта.
+
+    argv — список аргументов либо None для CLI. SHA256 исходников читаются
+    от PROJECT_ROOT; относительный --output считается от рабочей папки.
+    """
     args = parse_args(argv)
     session = Session()
     stamp = datetime.now(timezone(timedelta(hours=3))).strftime("%Y%m%d_%H%M%S_%f")
@@ -407,8 +419,8 @@ def main(argv=None):
                              for key, value in vars(args).items()}, session=vars(session),
         stop_lookback=3, stop_buffer_ticks=1, units="пункты на один контракт",
         limitations=LIMITATIONS, datasets=[],
-        implementation_sha256={str(p): sha256(p.read_bytes()).hexdigest() for p in
-            (Path(__file__), Path("source/chart_data.py"), Path("source/duration_data.py"))})
+        implementation_sha256={name: sha256((PROJECT_ROOT / name).read_bytes()).hexdigest() for name in
+            ("backtest/backtest_stochastic.py", "source/chart_data.py", "source/duration_data.py")})
     all_trades, all_daily, coverage, summary = [], [], [], []
     for symbol in dict.fromkeys(args.symbols):
         tick_size = {"RTS": 10, "MIX": 25}[symbol]

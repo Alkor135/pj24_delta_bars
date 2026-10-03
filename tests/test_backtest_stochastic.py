@@ -5,6 +5,7 @@
 
 Синтетические цены позволяют проверить расчёт индикатора вручную, порядок
 срабатывания стопа и цели, комиссии и просадку без обращения к котировкам.
+Исследовательский скрипт импортируется из пакета backtest.
 """
 
 import importlib.util
@@ -18,9 +19,9 @@ from types import SimpleNamespace
 import numpy as np
 import pandas as pd
 
-if importlib.util.find_spec("backtest_stochastic"):
-    import backtest_stochastic as stochastic_module
-    from backtest_stochastic import entry_signals, simulate_day, stochastic_frame
+if importlib.util.find_spec("backtest.backtest_stochastic"):
+    from backtest import backtest_stochastic as stochastic_module
+    from backtest.backtest_stochastic import entry_signals, simulate_day, stochastic_frame
 
 
 def sample_bars(closes, day="2026-09-01"):
@@ -46,8 +47,8 @@ class StochasticTests(unittest.TestCase):
 
     def setUp(self):
         """Требует наличие нового исследовательского скрипта перед каждой проверкой."""
-        self.assertIsNotNone(importlib.util.find_spec("backtest_stochastic"),
-                             "Нужен backtest_stochastic.py")
+        self.assertIsNotNone(importlib.util.find_spec("backtest.backtest_stochastic"),
+                             "Нужен backtest/backtest_stochastic.py")
 
     def test_formula_and_warmup(self):
         """Закрытие 12 в диапазоне 8–14 даёт 66,67; прогрев остаётся неопределённым."""
@@ -185,8 +186,8 @@ class ExecutionTests(unittest.TestCase):
 
     def setUp(self):
         """Требует реализацию скрипта перед проверкой исполнения."""
-        self.assertIsNotNone(importlib.util.find_spec("backtest_stochastic"),
-                             "Нужен backtest_stochastic.py")
+        self.assertIsNotNone(importlib.util.find_spec("backtest.backtest_stochastic"),
+                             "Нужен backtest/backtest_stochastic.py")
 
     def test_target_executes_on_next_tick(self):
         """Касание цели на третьем тике исполняется на четвёртом, по цене 109."""

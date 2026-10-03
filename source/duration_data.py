@@ -1,6 +1,6 @@
 """Подготовка событий исполнения из SQLite и проверенных тиковых ZIP Финама.
 
-Запуск: python backtest_duration.py --symbols RTS MIX
+Запуск: python backtest/backtest_duration.py --symbols RTS MIX
 Проверки: python -m unittest -v tests.test_duration_data
 Исходные базы и архивы открываются только для чтения.
 """

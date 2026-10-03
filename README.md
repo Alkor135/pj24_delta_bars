@@ -4,21 +4,52 @@
 
 ## Структура проекта
 
-В корне находятся Python-скрипты для запуска из VS Code или PowerShell:
+Python-скрипты запускаются из VS Code или PowerShell. Бэктесты находятся в
+папке `backtest`, остальные точки запуска — в корне проекта:
 
 | Скрипт | Назначение |
 | --- | --- |
 | `tick_to_delta_bars.py` | Конвертация тиков в адаптивные дельта-бары SQLite. |
+| `prepare_realtime_thresholds.py` | Подготовка дневных порогов RTS/MIX по прошлым ZIP для графиков QUIK; исторические БД только читаются. |
+| `realtime_quik_collector.py` | Общий сборщик для двух графиков; читает QuikSharp, ведёт отдельный журнал и выдаёт данные по локальному HTTP. Параметры в `realtime_quik.json`. |
 | `check_date_db_delta_bars.py` | Вывод трёх последних различных дат баров для каждой базы в папке. |
 | `chart_delta_bars.py` | Просмотр свечей, индикаторов, объёма и длительности. |
 | `chart_delta_bars_supertrend.py` | Отдельный просмотрщик дельта-баров с Supertrend и настройками ATR. |
 | `chart_delta_bar_semafor.py` | Отдельный график с «Семафором» MT4 5/12/34 и островами SMA 3/34. |
 | `chart_delta_bar_semafor_simulate.py` | Потоковое воспроизведение реальных баров с Семафором/SMA и изменяемой скоростью. |
-| `backtest_duration.py` | Проверка стратегии по длительности баров и построение отчётов PnL. |
-| `backtest_duration_reversed.py` | Та же проверка с противоположным направлением каждой разрешённой сделки. |
-| `backtest_stochastic.py` | Фиксированная проверка Stochastic (14, 3, 3) с ALF, тиковыми стопами и целью 2R; сравнение с ALF без стохастика. |
-| `backtest_heikin_ashi.py` | Проверка только цвета Heikin Ashi с подтверждением одной/двумя свечами и исполнением по исходным тикам. |
+| `chart_delta_bar_semafor_realtime_RTS.py` | Отдельный график RTS: история SQLite, текущие сделки QUIK, изменяемая свеча и Семафор/SMA. |
+| `chart_delta_bar_semafor_realtime_MIX.py` | Такой же отдельный график MIX; оба окна работают одновременно через общий сборщик. |
+| `start_chart_realtime_RTS.cmd`, `start_chart_realtime_MIX.cmd` | Запуск двух графиков двойным щелчком из `.venv`; дополнительные параметры передаются соответствующему Python-скрипту. |
+| `backtest/backtest_duration.py` | Проверка стратегии по длительности баров и построение отчётов PnL. |
+| `backtest/backtest_duration_reversed.py` | Та же проверка с противоположным направлением каждой разрешённой сделки. |
+| `backtest/backtest_stochastic.py` | Фиксированная проверка Stochastic (14, 3, 3) с ALF, тиковыми стопами и целью 2R; сравнение с ALF без стохастика. |
+| `backtest/backtest_heikin_ashi.py` | Проверка только цвета Heikin Ashi с подтверждением одной/двумя свечами и исполнением по исходным тикам. |
 | `patch_finplot.py` | Однократное исправление совместимости установленного finplot с русской локалью; также вызывается из `start_chart.cmd`. |
+
+## Одновременные графики QUIK RTS и MIX
+
+Запустите `C:\QUIK_VTB_2025_ЕБС\lua\QuikSharp.lua` в подключённом QUIK,
+включите обезличенные сделки нужных контрактов и откройте оба файла
+`start_chart_realtime_RTS.cmd` и `start_chart_realtime_MIX.cmd`.
+Общий сборщик запускается автоматически; исторические БД остаются только для чтения.
+
+```powershell
+.\.venv\Scripts\python.exe chart_delta_bar_semafor_realtime_RTS.py
+.\.venv\Scripts\python.exe chart_delta_bar_semafor_realtime_MIX.py
+# После ночного обновления БД: точные пороги на требуемую дату
+.\.venv\Scripts\python.exe prepare_realtime_thresholds.py --date 2026-10-05
+```
+
+По умолчанию изображение обновляется раз в 200 мс; `--refresh-ms` задаёт 50…10000 мс.
+Текущий день строится по прежнему tick rule. Пороги калибруются на прошлых тиках;
+без ночного JSON они рассчитываются при старте. Общие порты и контракты задаются
+в `realtime_quik.json`, отдельный журнал восстановления находится в `.live_cache`.
+Доступность полного текущего дня зависит от данных QUIK и явно отмечается в окне.
+Открытые окна подхватывают ночное обновление истории и порогов. После первой
+сделки дня порог сохраняется; если ночной расчёт изменился позднее, окно
+предлагает нажать **Обновить** для пересборки текущего дня.
+
+[Подключение, параметры, ночная подготовка, восстановление и диагностика](docs/realtime-quik.md).
 
 ## График с «Семафором» и островами
 
@@ -122,7 +153,7 @@ Depth/Deviation/Backstep. В первой инструкции «Острово�
 
 ## Тест Heikin Ashi без других индикаторов
 
-`backtest_heikin_ashi.py` рассчитывает Heikin Ashi из OHLC полных дельта-баров.
+`backtest/backtest_heikin_ashi.py` рассчитывает Heikin Ashi из OHLC полных дельта-баров.
 HA-close = (O+H+L+C)/4; HA-open = (предыдущие HA-open+HA-close)/2, а первый
 HA-open = (O+C)/2. HA-high/low включают исходный экстремум и синтетические
 открытие/закрытие. Неполные остатки пропускаются; рекурсия продолжается через
@@ -153,9 +184,9 @@ HA-open = (O+C)/2. HA-high/low включают исходный экстрем�
 статус `validated_warmup` в покрытии и не входят в сделки/статистику периода.
 
 ```powershell
-.\.venv\Scripts\python.exe backtest_heikin_ashi.py
-.\.venv\Scripts\python.exe backtest_heikin_ashi.py --symbols RTS --start 2026-09-01 --end 2026-09-30
-.\.venv\Scripts\python.exe backtest_heikin_ashi.py --confirmations 1,2 --costs 0,2,4,8 --base-cost 4
+.\.venv\Scripts\python.exe backtest/backtest_heikin_ashi.py
+.\.venv\Scripts\python.exe backtest/backtest_heikin_ashi.py --symbols RTS --start 2026-09-01 --end 2026-09-30
+.\.venv\Scripts\python.exe backtest/backtest_heikin_ashi.py --confirmations 1,2 --costs 0,2,4,8 --base-cost 4
 .\.venv\Scripts\python.exe -m unittest -v tests.test_backtest_heikin_ashi
 ```
 
@@ -177,7 +208,7 @@ HA-open = (O+C)/2. HA-high/low включают исходный экстрем�
 
 ## Фиксированный тест стохастика
 
-`backtest_stochastic.py` читает `C:\data_quote\delta_bars.sqlite3` и исходные
+`backtest/backtest_stochastic.py` читает `C:\data_quote\delta_bars.sqlite3` и исходные
 тиковые ZIP из журнала базы. Нужны зависимости `requirements-backtest.txt`.
 Рассчитывает Stochastic (14, 3, 3) и ALF с α=0,4 без подбора параметров.
 Стохастик использует только полные бары, ALF также учитывает дневные остатки,
@@ -202,9 +233,9 @@ OHLC, времена границ, число баров и полное пок�
 Известные дни прогрева построения баров также перечисляются в покрытии.
 
 ```powershell
-.\.venv\Scripts\python.exe backtest_stochastic.py
-.\.venv\Scripts\python.exe backtest_stochastic.py --symbols RTS --start 2026-09-01 --end 2026-09-30
-.\.venv\Scripts\python.exe backtest_stochastic.py --symbols RTS MIX --costs 0,2,4,8 --base-cost 4 --reward-risk 2
+.\.venv\Scripts\python.exe backtest/backtest_stochastic.py
+.\.venv\Scripts\python.exe backtest/backtest_stochastic.py --symbols RTS --start 2026-09-01 --end 2026-09-30
+.\.venv\Scripts\python.exe backtest/backtest_stochastic.py --symbols RTS MIX --costs 0,2,4,8 --base-cost 4 --reward-risk 2
 .\.venv\Scripts\python.exe -m unittest -v tests.test_backtest_stochastic
 ```
 
@@ -232,10 +263,13 @@ pj24_delta_bars/
 ├── check_date_db_delta_bars.py
 ├── chart_delta_bars.py
 ├── chart_delta_bars_supertrend.py
-├── backtest_duration.py
-├── backtest_duration_reversed.py
-├── backtest_stochastic.py
-├── backtest_heikin_ashi.py
+├── backtest/                 # точки запуска исследований
+│   ├── __init__.py
+│   ├── backtest_duration.py
+│   ├── backtest_duration_reversed.py
+│   ├── backtest_stochastic.py
+│   ├── backtest_heikin_ashi.py
+│   └── README.md
 ├── patch_finplot.py
 ├── start_chart.cmd
 ├── start_backtest.cmd
@@ -248,7 +282,8 @@ pj24_delta_bars/
 │   ├── duration_data.py      # подготовка данных стратегии
 │   ├── duration_engine.py    # расчёт сделок
 │   ├── duration_analysis.py  # подбор и сравнение параметров
-│   └── duration_report.py    # HTML-отчёт с графиками
+│   ├── duration_report.py    # HTML-отчёт с графиками
+│   └── README.md
 ├── tests/                    # все test_*.py и __init__.py
 ├── docs/                     # подробные инструкции
 ├── .vscode/settings.json    # обнаружение unittest в VS Code
@@ -257,18 +292,26 @@ pj24_delta_bars/
 └── README.md
 ```
 
-`source` — пакет Python; его модули импортируются как `source.delta_core`, `source.chart_data` и т. д. Для обычной работы запускайте соответствующий скрипт в корне. `.venv` содержит окружение, `.duration_cache` в корне ускоряет повторную подготовку данных стратегии. Котировки, базы и результаты по умолчанию находятся в `C:\data_quote`.
+`source` — пакет общих модулей; они импортируются как `source.delta_core`,
+`source.chart_data` и т. д. `backtest` — пакет точек запуска исследований;
+например, `backtest.backtest_duration`. Бэктест можно запустить файлом
+`python backtest/backtest_duration.py` или модулем
+`python -m backtest.backtest_duration`. Подробности — в
+[README бэктестов](backtest/README.md) и [README общих модулей](source/README.md).
+`.venv` содержит окружение, `.duration_cache` в корне ускоряет повторную
+подготовку данных стратегии. Стандартные пути результатов сохранены:
+длительность — `C:\data_quote`, стохастик и Heikin Ashi — `results/`.
 
 ## Запуск из VS Code и PowerShell
 
-Откройте в VS Code папку `C:\Users\Alkor\VSCode\pj24_delta_bars`. В команде **Python: Select Interpreter** выберите `.venv\Scripts\python.exe` этого проекта, откройте нужный корневой скрипт и нажмите **Run Python File**. Параметры командной строки удобнее передавать в терминале.
+Откройте в VS Code папку `C:\Users\Alkor\VSCode\pj24_delta_bars`. В команде **Python: Select Interpreter** выберите `.venv\Scripts\python.exe` этого проекта, откройте нужный скрипт в корне или папке `backtest` и нажмите **Run Python File**. Параметры командной строки удобнее передавать в терминале.
 
 Из терминала PowerShell в папке проекта:
 
 ```powershell
 .\.venv\Scripts\python.exe tick_to_delta_bars.py --help
 .\.venv\Scripts\python.exe chart_delta_bars.py
-.\.venv\Scripts\python.exe backtest_duration.py --symbols RTS
+.\.venv\Scripts\python.exe backtest/backtest_duration.py --symbols RTS
 ```
 
 Для конвертера достаточно стандартной библиотеки. Для просмотрщика и тестера стратегии используются зависимости из соответствующих файлов:
@@ -278,7 +321,17 @@ pj24_delta_bars/
 .\.venv\Scripts\python.exe patch_finplot.py
 ```
 
-Создание окружения с нуля описано в [инструкции просмотрщика](docs/chart.md). `start_chart.cmd` и `start_backtest.cmd` запускаются двойным щелчком и используют окружение проекта. При запуске из другой папки можно передать абсолютные пути к интерпретатору и корневому скрипту; менять `PYTHONPATH` не требуется.
+Создание окружения с нуля описано в [инструкции просмотрщика](docs/chart.md).
+`start_chart.cmd`, `start_backtest.cmd` и `start_backtest_reversed.cmd`
+запускаются двойным щелчком и используют окружение проекта. Запускатели
+бэктестов выбирают корень как рабочую папку, проверяют `.venv` и передают
+аргументы скриптам из `backtest`; примеры:
+`start_backtest.cmd --symbols RTS`,
+`start_backtest_reversed.cmd --symbols MIX --entry-filter none`.
+При запуске из другой папки можно передать абсолютные пути к интерпретатору и
+скрипту; менять `PYTHONPATH` не требуется. Относительные пользовательские пути
+результатов считаются от рабочей папки; кэш длительности и исходники для
+SHA256 определяются от корня проекта.
 
 ## Проверка последних дат в базах
 
@@ -511,7 +564,7 @@ SQLite открывается только для чтения; индикато
 
 ## Проверка стратегии длительности
 
-Запуск: `start_backtest.cmd` или `.\.venv\Scripts\python.exe backtest_duration.py`.
+Запуск: `start_backtest.cmd` или `.\.venv\Scripts\python.exe backtest/backtest_duration.py`.
 
 По умолчанию RTS и MIX проверяются отдельно: вход — длительность завершённого бара меньше порога 1…45 секунд с шагом 1; выход — больше порога 5…300 секунд с шагом 5. Проверяются пары с порогом выхода больше порога входа. Сравниваются сценарии издержек 0, 2, 4 и 8 шагов цены за круг.
 
@@ -519,10 +572,10 @@ SQLite открывается только для чтения; индикато
 
 ```powershell
 # Новый вариант: длительность + направление бара + сторона ALF
-.\.venv\Scripts\python.exe backtest_duration.py --symbols RTS MIX --entry-filter alf --alf-alpha 0.4
+.\.venv\Scripts\python.exe backtest/backtest_duration.py --symbols RTS MIX --entry-filter alf --alf-alpha 0.4
 
 # Прежний вариант для сравнения
-.\.venv\Scripts\python.exe backtest_duration.py --symbols RTS MIX --entry-filter none
+.\.venv\Scripts\python.exe backtest/backtest_duration.py --symbols RTS MIX --entry-filter none
 ```
 
 Условия входа и α записываются в отчёт, а close и ALF сигнального бара — в журнал сделок. Кэш исходных событий общий; фильтр применяется заново при каждом запуске.
@@ -530,9 +583,9 @@ SQLite открывается только для чтения; индикато
 Для обратных входов используйте отдельный скрипт или `start_backtest_reversed.cmd`:
 
 ```powershell
-.\.venv\Scripts\python.exe backtest_duration_reversed.py
-.\.venv\Scripts\python.exe backtest_duration_reversed.py --symbols RTS
-.\.venv\Scripts\python.exe backtest_duration_reversed.py --symbols MIX --entry-filter none
+.\.venv\Scripts\python.exe backtest/backtest_duration_reversed.py
+.\.venv\Scripts\python.exe backtest/backtest_duration_reversed.py --symbols RTS
+.\.venv\Scripts\python.exe backtest/backtest_duration_reversed.py --symbols MIX --entry-filter none
 ```
 
 В обратном варианте разрешённый сигнал покупки открывает продажу, а сигнал продажи — покупку. При включённом ALF это **Short после быстрого растущего бара выше ALF**, **Long после быстрого падающего бара ниже ALF**. Отбор по ALF выполняется до разворота. Длительность, исполнение на следующем тике, выходы и ограничение одной позиции сохраняются. Издержки снова вычитаются из валового PnL.

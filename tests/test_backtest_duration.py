@@ -1,4 +1,4 @@
-"""Проверки границ перебора и сохранения результатов исследования.
+"""Проверки границ перебора и сохранения результатов backtest.backtest_duration.
 
 Запуск: python -m unittest -v tests.test_backtest_duration
 """
@@ -9,8 +9,8 @@ from pathlib import Path
 import numpy as np
 from source.duration_engine import Day,Event,parameter_grid,simulate_grid
 
-if importlib.util.find_spec('backtest_duration'):
-    from backtest_duration import parse_grid,build_payload,save_tables
+if importlib.util.find_spec('backtest.backtest_duration'):
+    from backtest.backtest_duration import parse_grid,build_payload,save_tables
 
 
 class RunnerTests(unittest.TestCase):
@@ -18,7 +18,7 @@ class RunnerTests(unittest.TestCase):
 
     def setUp(self):
         """Требует реализации точки входа до начала интеграционных проверок."""
-        self.assertIsNotNone(importlib.util.find_spec('backtest_duration'),'Нужен backtest_duration')
+        self.assertIsNotNone(importlib.util.find_spec('backtest.backtest_duration'),'Нужен backtest/backtest_duration.py')
 
     def test_parse_grid(self):
         """Сетка включает правую границу и не допускает нулевой шаг."""

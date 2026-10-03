@@ -4,12 +4,19 @@
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m unittest -v tests.test_backtest_launch
 .\.venv\Scripts\python.exe -m unittest -v tests.test_backtest_stochastic
 .\.venv\Scripts\python.exe -m unittest -v tests.test_backtest_heikin_ashi
 .\.venv\Scripts\python.exe -m unittest -v tests.test_chart_supertrend
 .\.venv\Scripts\python.exe -m unittest -v tests.test_chart_semafor
 .\.venv\Scripts\python.exe -m unittest -v tests.test_chart_semafor_simulate
 ```
+
+`test_backtest_launch.py` проверяет расположение четырёх `backtest*.py` в пакете
+`backtest`, прямой и модульный запуск справки из корня, запуск из папки `backtest`
+и посторонней рабочей папки без `PYTHONPATH`. Полные запуски на временных SQLite/ZIP
+проверяют создание отчётов, относительные пути результатов, SHA256 исходников и
+сохранение стандартного кэша длительности в корневой `.duration_cache`.
 
 `test_backtest_stochastic.py` проверяет формулу Stochastic, прогрев, исключение
 неполных баров, причинность индикаторов, пересечения 20/80 с ALF и базу сравнения
@@ -58,3 +65,23 @@ Supertrend появилось только на последнем баре.
 охватывают паузу, один шаг, изменение интервала на ходу, завершение и перезапуск,
 появление и перенос меток СФ в пресетах NUF/FXi, неполные бары и границы дней. Обновление должно
 сохранять холст, свечной объект, видимость индикаторов и выбранный масштаб.
+
+## Проверки графиков QUIK
+
+`test_chart_realtime.py` проверяет изменяемую свечу, новые бары, прогрев,
+полночь МСК, освобождение worker, независимость двух Qt-окон, подхват ночного
+обновления истории/порога и предупреждение о новом пороге после первой сделки.
+Запуск из корня: `.\.venv\Scripts\python.exe -m unittest -v tests.test_chart_realtime`.
+
+`test_realtime_feed.py` проверяет JSON по настоящим локальным TCP-сокетам,
+выбор контракта, независимые HTTP-курсоры RTS/MIX и сохранение callback
+при разрыве, таймауте снимка и смене даты. Запуск:
+`.\.venv\Scripts\python.exe -m unittest -v tests.test_realtime_feed`.
+
+`test_realtime_data.py` проверяет прошлое окно калибровки, кэш порогов,
+ручной порог и исключение текущего дня. Запуск из корня:
+`.\.venv\Scripts\python.exe -m unittest -v tests.test_realtime_data`.
+
+`test_realtime_core.py` проверяет tick rule, неделимость сделки, совпадение
+с пакетным построителем, поздние/повторные сделки, календарный сброс и журнал.
+Запуск из корня: `.\.venv\Scripts\python.exe -m unittest -v tests.test_realtime_core`.

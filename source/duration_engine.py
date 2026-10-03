@@ -1,6 +1,6 @@
 """Модель исполнения стратегии по длительности завершённых дельта-баров.
 
-Запуск исследования: python backtest_duration.py --symbols RTS MIX
+Запуск исследования: python backtest/backtest_duration.py --symbols RTS MIX
 Проверки: python -m unittest -v tests.test_duration_engine
 """
 

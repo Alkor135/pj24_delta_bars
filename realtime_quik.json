@@ -1,0 +1,15 @@
+{
+  "quik_dir": "C:\\QUIK_VTB_2025_ЕБС",
+  "host": "127.0.0.1",
+  "requests_port": 34130,
+  "callbacks_port": 34131,
+  "collector_port": 34200,
+  "cache_dir": ".live_cache",
+  "request_timeout": 15,
+  "reconcile_seconds": 60,
+  "idle_seconds": 90,
+  "instruments": {
+    "RTS": {"class_code": "SPBFUT", "prefix": "RI", "sec_code": null, "price_scale": 1},
+    "MIX": {"class_code": "SPBFUT", "prefix": "MX", "sec_code": null, "price_scale": 1}
+  }
+}
