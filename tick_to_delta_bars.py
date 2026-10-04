@@ -6,10 +6,11 @@
 
 Примеры запуска из папки проекта:
     python tick_to_delta_bars.py
-    python tick_to_delta_bars.py --symbols MIX --start 2022-01-01 --end 2022-03-01
-    python tick_to_delta_bars.py --symbols RTS MIX --db C:\\data_quote\\delta_bars.sqlite3
     python tick_to_delta_bars.py --symbols RTS --db C:\\data_quote\\RTS_delta_bars.sqlite3
     python tick_to_delta_bars.py --symbols MIX --db C:\\data_quote\\MIX_delta_bars.sqlite3
+
+    python tick_to_delta_bars.py --symbols MIX --start 2022-01-01 --end 2022-03-01
+    python tick_to_delta_bars.py --symbols RTS MIX --db C:\\data_quote\\delta_bars.sqlite3
     python tick_to_delta_bars.py --lookback 20 --target-minutes 5
 Только стандартная библиотека Python 3.10+; исходные ZIP не изменяются.
 """
