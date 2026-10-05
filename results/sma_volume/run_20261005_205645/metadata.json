@@ -1,0 +1,57 @@
+{
+  "created": "2026-10-05T20:56:45+03:00",
+  "settings": {
+    "start": "2022-01-01",
+    "end": "2026-10-02",
+    "symbols": [
+      "RTS",
+      "MIX"
+    ],
+    "costs": [
+      0.0,
+      2.0,
+      4.0,
+      8.0
+    ],
+    "base_cost": 4,
+    "repetitions": 5000,
+    "seed": 20261005,
+    "lookback": 20,
+    "session_start": "10:00",
+    "session_close": "18:45",
+    "bar_minutes": 5,
+    "sma": [
+      3,
+      34
+    ],
+    "warmup": 100,
+    "volume_rule": "Объём [10:00,t) > медиана [10:00,t) предыдущих 20 будних дат",
+    "reversal_filter": false
+  },
+  "tick_sizes": {
+    "RTS": 10.0,
+    "MIX": 25.0
+  },
+  "source": "C:\\Users\\Alkor\\VSCode\\pj24_delta_bars\\results\\volume_trend",
+  "source_hashes": {
+    "audit.csv": "2acc90f35083a1166cf153f15531fbe9f991b272164540d722fff5a3015d1f96",
+    "config.json": "9d419d8df8158541af966ade910109ad7ea2662e05a720a01f8d32a51eee7dcb",
+    "RTS_audit.csv": "61caddc7047a08f53b545e2b0f002740c8a4fa889172505b6b6f59a34c78b1b5",
+    "MIX_audit.csv": "ac32af40b410e82f03dcf0bd830c402e96574e01f22e80bf42d1ef76cf0e5f99"
+  },
+  "scripts": {
+    "backtest/backtest_sma_volume.py": "aaabbf88a88d9a7b62351750b46848aece7eab970284c8022faf5af2d2f6a059",
+    "source/sma_volume_engine.py": "595de343d314f93bfb1f000eb7b72dff9ca254164b6d060ed1c060da38c3918a",
+    "source/sma_volume_report.py": "57026236c07fcb3f024c94719938c4afaf1334348629af5b207058e075eb4a34",
+    "research/volume_trend.py": "d23892f7a0bd4e232470d1f821d482158280b4a6a05ec81950eb7fd5ee676497",
+    "research/volume_trend_data.py": "def2dc39ce2c3edc9e108d70cee3c79cc959cc19fa4e113936837dabf94f0f47",
+    "research/volume_trend_metrics.py": "fb89e0a3e603611e7a41bdbe5b5aeb9e21592025abaa59c89ef413ee985d6430"
+  },
+  "versions": {
+    "python": "3.13.15",
+    "numpy": "2.2.6",
+    "pandas": "2.2.3"
+  },
+  "family_size": 8,
+  "verification_days": 2400
+}

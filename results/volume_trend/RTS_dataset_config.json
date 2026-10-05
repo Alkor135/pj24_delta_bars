@@ -1,0 +1,17 @@
+{
+  "algorithm": "adaptive_tick_rule_v1",
+  "calibration_count_includes_partial": true,
+  "day_end": "save_partial_and_reset",
+  "direction": "tick_rule_carry_nonzero_daily_reset",
+  "first_direction": "neutral",
+  "lookback_weekdays_with_ticks": 20,
+  "output_start": "2022-01-01",
+  "overshoot": "whole_trade_no_carry",
+  "source_root": "C:\\data_quote",
+  "target_minutes": 5,
+  "timestamp_precision": "source_synthetic_fraction_preserved",
+  "timezone": "Europe/Moscow",
+  "utc_offset": "+03:00",
+  "weekend_bars": true,
+  "weekends_in_training": false
+}

@@ -1,0 +1,6 @@
+{
+  "repetitions": 5000,
+  "seed": 20261005,
+  "command": "C:\\Users\\Alkor\\VSCode\\pj24_delta_bars\\research\\volume_trend.py --stage analyze --repetitions 5000",
+  "completed": "2026-10-05T18:58:29"
+}

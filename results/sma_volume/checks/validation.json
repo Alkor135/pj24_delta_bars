@@ -1,0 +1,109 @@
+{
+  "tests": 196,
+  "modules": 24,
+  "details": [
+    {
+      "module": "test_backtest_duration",
+      "tests": 3
+    },
+    {
+      "module": "test_backtest_heikin_ashi",
+      "tests": 16
+    },
+    {
+      "module": "test_backtest_launch",
+      "tests": 4
+    },
+    {
+      "module": "test_backtest_sma_volume",
+      "tests": 11
+    },
+    {
+      "module": "test_backtest_stochastic",
+      "tests": 19
+    },
+    {
+      "module": "test_chart_data",
+      "tests": 9
+    },
+    {
+      "module": "test_chart_gui",
+      "tests": 6
+    },
+    {
+      "module": "test_chart_realtime",
+      "tests": 6
+    },
+    {
+      "module": "test_chart_realtime_supertrend",
+      "tests": 5
+    },
+    {
+      "module": "test_chart_semafor",
+      "tests": 8
+    },
+    {
+      "module": "test_chart_semafor_simulate",
+      "tests": 8
+    },
+    {
+      "module": "test_chart_supertrend",
+      "tests": 12
+    },
+    {
+      "module": "test_delta_bars",
+      "tests": 16
+    },
+    {
+      "module": "test_duration_alf",
+      "tests": 8
+    },
+    {
+      "module": "test_duration_analysis",
+      "tests": 4
+    },
+    {
+      "module": "test_duration_data",
+      "tests": 4
+    },
+    {
+      "module": "test_duration_engine",
+      "tests": 5
+    },
+    {
+      "module": "test_duration_report",
+      "tests": 8
+    },
+    {
+      "module": "test_duration_reversed",
+      "tests": 5
+    },
+    {
+      "module": "test_realtime_core",
+      "tests": 6
+    },
+    {
+      "module": "test_realtime_data",
+      "tests": 4
+    },
+    {
+      "module": "test_realtime_feed",
+      "tests": 6
+    },
+    {
+      "module": "test_volume_trend",
+      "tests": 15
+    },
+    {
+      "module": "test_volume_trend_5m_report",
+      "tests": 8
+    }
+  ],
+  "documentation_checked": [
+    "backtest/backtest_sma_volume.py",
+    "source/sma_volume_engine.py",
+    "source/sma_volume_report.py",
+    "tests/test_backtest_sma_volume.py"
+  ],
+  "comment": "Тесты транспорта прошли вне ограничения локальных сокетов песочницы; остальные в обычном режиме."
+}

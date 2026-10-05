@@ -1,0 +1,16 @@
+{
+  "source_sha256": "e2c1aa49aaa326f235e228340e39f1aa4aeab0906ea7401f42071abced691fdc",
+  "script_sha256": "a44ddb7cfe146feade5431b817f03f78a816644ba433140523771727e33ecc3d",
+  "generated": "2026-10-05T19:43:27",
+  "repetitions": 5000,
+  "seed": 20261005,
+  "primary_period": "2026",
+  "family_size": 16,
+  "blocks": [
+    20,
+    40,
+    60
+  ],
+  "ci": "симметричный по абсолютной центрированной ошибке",
+  "html": "C:\\Users\\Alkor\\VSCode\\pj24_delta_bars\\results\\volume_trend\\five_minute_report.html"
+}

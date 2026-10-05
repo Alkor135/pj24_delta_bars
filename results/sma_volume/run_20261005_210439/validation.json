@@ -1,0 +1,11 @@
+{
+  "signals_iso": 11940,
+  "csv_identical_to_reviewed_run": true,
+  "script_hashes_verified": 6,
+  "source_metadata_hashes_verified": 4,
+  "charts": 9,
+  "js_blocks_checked": 11,
+  "external_html_resources": [],
+  "html_bytes": 5433103,
+  "note": "Проверены структура и синтаксис HTML/JavaScript; графическое открытие в браузере не проверялось."
+}

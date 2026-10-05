@@ -1,0 +1,11 @@
+{
+  "plotly": "6.3.0",
+  "files": {
+    "research\\volume_trend.py": "d23892f7a0bd4e232470d1f821d482158280b4a6a05ec81950eb7fd5ee676497",
+    "research\\volume_trend_data.py": "def2dc39ce2c3edc9e108d70cee3c79cc959cc19fa4e113936837dabf94f0f47",
+    "research\\volume_trend_metrics.py": "fb89e0a3e603611e7a41bdbe5b5aeb9e21592025abaa59c89ef413ee985d6430",
+    "research\\volume_trend_report.py": "75201c8d27f9d62e59c46563dd8720cc95ebae8736617e3e020656e26268101e",
+    "research\\__init__.py": "1999127cfd3cdf188be0175e0a6ca2a7af8a3699739792793a34247259b2f84e",
+    "tests\\test_volume_trend.py": "9ef065786032bd95ed5fa0bc2db17837f6e6ffe71ed88a45e85160068af99f19"
+  }
+}

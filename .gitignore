@@ -222,3 +222,7 @@ __marimo__/
 .live_cache/
 results/stochastic/
 results/heikin_ashi/
+
+# Тиковый кэш и согласованные снимки для исследования объёма
+results/volume_trend/cache/
+.test_tmp/
