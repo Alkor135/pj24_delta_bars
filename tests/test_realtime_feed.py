@@ -2,6 +2,7 @@
 
 Запуск: .\\.venv\\Scripts\\python.exe -m unittest -v tests.test_realtime_feed
 Используются локальные тестовые TCP/HTTP-серверы без брокера и торговых операций.
+Русские ответы и callbacks проверяются в Windows-1251 и UTF-8.
 """
 
 from datetime import date
@@ -78,6 +79,40 @@ class FeedTests(unittest.TestCase):
         info = dict(class_code="SPBFUT", prefix="RI", sec_code=None)
         self.assertEqual(select_contract(ReferenceBridge(), "RTS", info, date(2026, 10, 2))["sec_code"], "RIZ6")
         self.assertEqual(select_contract(ReferenceBridge(), "RTS", dict(info, sec_code="RIH7"), date(2026, 10, 2))["sec_code"], "RIH7")
+
+    def test_bridge_accepts_quik_cp1251_and_utf8_responses_and_callbacks(self):
+        """Русские поля реального QUIK в CP1251 и UTF-8 не обрывают ответы и приём сделок."""
+        from source.quik_bridge import QuikBridge
+        for encoding in ("cp1251", "utf-8"):
+            with self.subTest(encoding=encoding), socket.socket() as requests, socket.socket() as callbacks:
+                requests.bind(("127.0.0.1", 0))
+                callbacks.bind(("127.0.0.1", 0))
+                requests.listen()
+                callbacks.listen()
+
+                def serve():
+                    """Отдаёт кириллический справочник и сделку в выбранной кодировке терминала."""
+                    with requests.accept()[0] as response, callbacks.accept()[0] as callback:
+                        message = json.loads(response.makefile("rb").readline())
+                        trade = dict(raw_trade(), exchange_code="Московская биржа")
+                        callback.sendall((json.dumps(dict(cmd="OnAllTrade", data=trade), ensure_ascii=False) + "\n").encode(encoding))
+                        result = dict(message, data=dict(sec_code="RIZ6", name="Фьючерс на индекс РТС", mat_date=20261217))
+                        payload = (json.dumps(result, ensure_ascii=False) + "\n").encode(encoding)
+                        response.sendall(payload[:23])
+                        response.sendall(payload[23:])
+
+                server = Thread(target=serve)
+                server.start()
+                bridge = QuikBridge("127.0.0.1", requests.getsockname()[1], callbacks.getsockname()[1], timeout=2)
+                try:
+                    info = bridge.request("getSecurityInfo", "SPBFUT|RIZ6")
+                    self.assertEqual(info["name"], "Фьючерс на индекс РТС")
+                    event = bridge.events.get(timeout=2)
+                    self.assertEqual(event["cmd"], "OnAllTrade")
+                    self.assertEqual(event["data"]["exchange_code"], "Московская биржа")
+                finally:
+                    bridge.close()
+                    server.join(3)
 
     def test_two_http_clients_keep_independent_cursors_and_journal(self):
         """Оба графика читают один сборщик; поздняя новая запись остаётся доступной."""

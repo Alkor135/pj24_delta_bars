@@ -2,6 +2,7 @@ r"""Интерактивный график дельта-баров RTS/MIX с �
 
 Примеры запуска из папки проекта:
     .\.venv\Scripts\python.exe chart_delta_bars_supertrend.py
+    .\.venv\Scripts\python.exe chart_delta_bars_supertrend.py --symbol RTS --start 2022-09-01
     .\.venv\Scripts\python.exe chart_delta_bars_supertrend.py --symbol MIX
     .\.venv\Scripts\python.exe chart_delta_bars_supertrend.py --atr-period 10 --multiplier 3
     .\.venv\Scripts\python.exe chart_delta_bars_supertrend.py --symbol RTS --start 2026-09-01 --end 2026-09-28

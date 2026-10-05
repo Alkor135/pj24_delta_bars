@@ -4,12 +4,14 @@
     python chart_delta_bar_semafor_realtime_RTS.py
     python chart_delta_bar_semafor_realtime_MIX.py --refresh-ms 200
     python chart_delta_bar_semafor_realtime_RTS.py --threshold 100 --start 2026-09-01
+    python chart_delta_bar_semafor_realtime_supertrend_RTS.py --atr-period 10 --multiplier 3
     python -m unittest -v tests.test_chart_realtime
 Приём сделок независим от GUI. Фоновый worker читает журнал с курсором,
 пересчитывает Семафор/SMA; GUI обновляет прежний холст и сохраняет масштаб.
 Исторические БД только читаются. Текущий незавершённый бар имеет причину live.
 Изменение ночных источников автоматически обновляет историю. До первой сделки
 уточняется порог; после начала дня изменение порога требует кнопки «Обновить».
+Расширенный вариант добавляет Supertrend на том же потоке через тип сессии/холста.
 """
 
 import argparse
@@ -84,10 +86,14 @@ class LiveSession:
         else:
             raw = self.history.copy()
         raw = raw.sort_values(["day", "bar_index"]).reset_index(drop=True)
-        calculated = calculate_indicators(raw, **self.settings)
+        calculated = self.calculate_data(raw)
         self.data = calculated.loc[calculated.day >= self.start].copy().reset_index(drop=True)
         self.data["x"] = np.arange(len(self.data), dtype=np.int64)
         self.version += 1
+
+    def calculate_data(self, data):
+        """Возвращает индикаторы всей data до фильтрации дат; расширенная сессия добавляет свои столбцы."""
+        return calculate_indicators(data, **self.settings)
 
     def ingest(self, trades):
         """Учитывает Trade из trades и пересчитывает график при изменениях; возвращает bool."""
@@ -127,7 +133,7 @@ class RealtimeWorker(BaseLoadWorker):
     """Читает историю/порог либо новые сделки и рассчитывает кадр вне GUI."""
 
     def __init__(self, request, parent=None, session=None):
-        """Сохраняет request источника и прежнюю session для очередного обновления."""
+        """Сохраняет request источника и прежнюю session; request.session_type задаёт класс расчёта."""
         super().__init__(request, parent)
         self.session = session
 
@@ -146,8 +152,9 @@ class RealtimeWorker(BaseLoadWorker):
                     return resolve_threshold(request["db"], request["symbol"], day, selected,
                                              request["threshold_file"], request["manual_threshold"])
 
-                session = LiveSession(history, request["symbol"], selected, request["start"], today,
-                                      threshold_provider, request["settings"])
+                session_type = request.get("session_type", LiveSession)
+                session = session_type(history, request["symbol"], selected, request["start"], today,
+                                       threshold_provider, request["settings"])
             else:
                 session = self.session
                 if session.today != today or session.source_revision != revision:
@@ -179,7 +186,10 @@ class RealtimeWorker(BaseLoadWorker):
 
 
 class RealtimeWindow(SemaforWindow):
-    """Отдельное окно фиксированного инструмента с обновлением текущей свечи и слежением."""
+    """Отдельное окно инструмента; session_type/canvas_type выбирают расчёт и обновляемый холст."""
+
+    session_type = LiveSession
+    canvas_type = ChartCanvas
 
     def __init__(self, symbol, data_dir=DEFAULT_DATA_DIR, db_path=None, start=None,
                  config_path=DEFAULT_CONFIG, threshold_file=DEFAULT_THRESHOLD_FILE,
@@ -237,14 +247,14 @@ class RealtimeWindow(SemaforWindow):
         self.end_edit.setEnabled(False)
 
     def current_request(self):
-        """Возвращает независимые параметры источника и индикаторов для фонового worker."""
+        """Возвращает параметры источника, индикаторов и класс session_type для фонового worker."""
         settings = validate_settings(tuple(spin.value() for spin in self.depth_spins), self.deviation_spin.value(),
                                      self.backstep_spin.value(), self.point_spin.value(),
                                      self.ma_fast_spin.value(), self.ma_slow_spin.value())
         return dict(db=self.database_path(), symbol=self.symbol_combo.currentText(),
                     dataset_id=self.dataset_combo.currentData(), start=self.start_edit.date().toString("yyyy-MM-dd"),
                     config_path=self.config_path, threshold_file=self.threshold_file,
-                    manual_threshold=self.manual_threshold, settings=settings)
+                    manual_threshold=self.manual_threshold, settings=settings, session_type=self.session_type)
 
     def _start_worker(self, session=None):
         """Запускает одну загрузку либо обновление session; одновременно второй worker не создаётся."""
@@ -333,7 +343,7 @@ class RealtimeWindow(SemaforWindow):
         if self.data.empty:
             self.placeholder.setText("Ожидание первых баров")
             return
-        self.canvas = ChartCanvas(self, self.data, self.offset_spin.value(), self.preset_combo.currentData())
+        self.canvas = self.canvas_type(self, self.data, self.offset_spin.value(), self.preset_combo.currentData())
         self._canvas_preset = self.preset_combo.currentData()
         self.chart_layout.addWidget(self.canvas)
         self.apply_visibility()
@@ -365,8 +375,12 @@ class RealtimeWindow(SemaforWindow):
         super().closeEvent(event)
 
 
-def main(symbol, argv=None):
-    """Разбирает argv и запускает фиксированный график symbol; возвращает код завершения Qt."""
+def main(symbol, argv=None, *, supertrend=False):
+    """Разбирает argv и запускает график symbol; supertrend добавляет ATR/множитель и новые линии.
+
+    Возвращает код завершения Qt. Обычные скрипты используют supertrend=False;
+    отдельные расширенные скрипты передают True и сохраняют Семафор/SMA.
+    """
     parser = argparse.ArgumentParser(description=f"{symbol}: дельта-бары и Семафор в реальном времени из QUIK")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG, help="общая конфигурация QUIK")
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR, help="папка исторических баз")
@@ -383,7 +397,19 @@ def main(symbol, argv=None):
     parser.add_argument("--point", type=float, default=1, help="единица цены для допуска")
     parser.add_argument("--ma-fast", type=int, default=3, help="период быстрой SMA")
     parser.add_argument("--ma-slow", type=int, default=34, help="период медленной SMA")
+    window_type, additional = RealtimeWindow, {}
+    if supertrend:
+        from chart_delta_bars_supertrend import DEFAULT_ATR_PERIOD, DEFAULT_MULTIPLIER, valid_period, valid_multiplier
+        from source.realtime_supertrend import SupertrendWindow
+        window_type = SupertrendWindow
+        parser.description += " и Supertrend"
+        parser.add_argument("--atr-period", type=valid_period, default=DEFAULT_ATR_PERIOD,
+                            help="период ATR Уайлдера в дельта-барах, 1…10000 (по умолчанию 10)")
+        parser.add_argument("--multiplier", type=valid_multiplier, default=DEFAULT_MULTIPLIER,
+                            help="множитель ATR, 0.01…1000 (по умолчанию 3)")
     args = parser.parse_args(argv)
+    if supertrend:
+        additional = dict(atr_period=args.atr_period, multiplier=args.multiplier)
     try:
         load_config(args.config)
         if args.threshold is not None:
@@ -398,7 +424,7 @@ def main(symbol, argv=None):
     except (ValueError, OSError, KeyError) as exc:
         parser.error(str(exc))
     app = create_application()
-    window = RealtimeWindow(symbol, args.data_dir, args.db, args.start, args.config, args.threshold_file,
-                            args.threshold, args.dataset_id, args.refresh_ms, preset=args.preset, **settings)
+    window = window_type(symbol, args.data_dir, args.db, args.start, args.config, args.threshold_file,
+                         args.threshold, args.dataset_id, args.refresh_ms, preset=args.preset, **settings, **additional)
     window.show()
     return app.exec()

@@ -11,9 +11,10 @@
 | `delta_core.py` | Строит адаптивные дельта-бары из тиков. |
 | `realtime_core.py` | Нормализует сделки QUIK, строит текущие дельта-бары по tick rule, пересчитывает поздние сделки и ведёт отдельный журнал SQLite с курсором. |
 | `realtime_data.py` | Читает историю до текущего дня; подбирает порог по прошлым ZIP, проверяет дату/набор/окно кэша, атомарно сохраняет JSON порогов; отслеживает изменения SQLite/WAL и JSON ночной подготовки. |
-| `quik_bridge.py` | Разрешённые рыночные запросы и независимый поток событий установленного QuikSharp; выбор серии RI/MX по справочнику погашений. |
+| `quik_bridge.py` | Разрешённые рыночные запросы и независимый поток событий установленного QuikSharp; ответы/события UTF-8 или Windows-1251, выбор серии RI/MX по справочнику погашений. |
 | `realtime_feed.py` | Общий сборщик, отдельный журнал, повторная сверка дня, локальный HTTP и автоматический скрытый запуск процесса для двух окон; сохраняет хвост callback при ошибке снимка, разрыве и смене даты. |
 | `realtime_chart.py` | Общая сессия исторических/живых баров, фоновое чтение журнала, текущая свеча, календарный переход и два самостоятельных окна фиксированных инструментов; подхватывает ночное обновление, фиксирует порог после первой сделки. |
+| `realtime_supertrend.py` | Расширенная сессия/холст/окно Семафора: рассчитывает Supertrend до фильтрации дат, обновляет две ступенчатые ветви на прежнем холсте; ATR и множитель в GUI/CLI, компактная общая легенда. |
 | `delta_store.py` | Хранит наборы параметров, бары и журнал исходников в SQLite. |
 | `chart_data.py` | Читает базы и рассчитывает индикаторы для просмотра. |
 | `duration_data.py` | Проверяет SQLite и ZIP, создаёт события исполнения, применяет сессию и ALF, кэширует подготовленные данные. |
@@ -35,6 +36,9 @@ python backtest/backtest_duration_reversed.py --symbols MIX --entry-filter none
 python -m unittest -v tests.test_duration_data tests.test_duration_engine tests.test_duration_analysis tests.test_duration_report
 python -m unittest -v tests.test_realtime_core
 python -m unittest -v tests.test_realtime_data tests.test_realtime_feed tests.test_chart_realtime
+python chart_delta_bar_semafor_realtime_supertrend_RTS.py --atr-period 10 --multiplier 3
+python chart_delta_bar_semafor_realtime_supertrend_MIX.py --help
+python -m unittest -v tests.test_chart_realtime_supertrend
 ```
 
 Длительности задаются в секундах через `--entry-grid` и `--exit-grid`

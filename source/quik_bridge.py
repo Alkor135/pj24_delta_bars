@@ -5,6 +5,7 @@
 Запросы ограничены состоянием связи, справочником и обезличенными сделками.
 Callback читается в отдельном потоке; при ошибке соединение закрывается и
 пересоздаётся сборщиком. Торговые запросы этим модулем не поддерживаются.
+Входящие ответы и события поддерживают UTF-8 и Windows-1251 русского QUIK.
 """
 
 from datetime import date
@@ -15,6 +16,19 @@ import socket
 from threading import Event, Lock, Thread
 
 READ_COMMANDS = frozenset(("ping", "isConnected", "getClassSecurities", "getSecurityInfo", "get_all_trades"))
+
+
+def decode_quik_message(line):
+    """Декодирует JSON-строку bytes line из UTF-8 либо Windows-1251; возвращает сообщение.
+
+    Установленный dkjson передаёт русские строки в кодировке терминала QUIK.
+    Сначала проверяется UTF-8, затем CP1251; повреждённые символы не заменяются.
+    """
+    try:
+        decoded = line.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        decoded = line.decode("cp1251")
+    return json.loads(decoded)
 
 
 class QuikBridge:
@@ -46,7 +60,7 @@ class QuikBridge:
                 line = self._callback_file.readline()
                 if not line:
                     raise ConnectionError("QUIK закрыл соединение событий")
-                message = json.loads(line)
+                message = decode_quik_message(line)
                 if not isinstance(message, dict):
                     raise ValueError("QUIK прислал неверное сообщение события")
                 self.events.put(message)
@@ -65,7 +79,7 @@ class QuikBridge:
             line = self._response_file.readline()
             if not line:
                 raise ConnectionError("QUIK закрыл соединение запросов")
-            message = json.loads(line)
+            message = decode_quik_message(line)
             if message.get("cmd") in ("lua_error", "error") or message.get("error"):
                 raise ValueError(f"Ошибка Lua: {message.get('data', message.get('error'))}")
             if message.get("id") != self._counter:

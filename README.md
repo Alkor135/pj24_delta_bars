@@ -19,6 +19,8 @@ Python-скрипты запускаются из VS Code или PowerShell. Б�
 | `chart_delta_bar_semafor_simulate.py` | Потоковое воспроизведение реальных баров с Семафором/SMA и изменяемой скоростью. |
 | `chart_delta_bar_semafor_realtime_RTS.py` | Отдельный график RTS: история SQLite, текущие сделки QUIK, изменяемая свеча и Семафор/SMA. |
 | `chart_delta_bar_semafor_realtime_MIX.py` | Такой же отдельный график MIX; оба окна работают одновременно через общий сборщик. |
+| `chart_delta_bar_semafor_realtime_supertrend_RTS.py`, `chart_delta_bar_semafor_realtime_supertrend_MIX.py` | Дополнительные реал-тайм графики RTS/MIX с сохранёнными Семафором/SMA и Supertrend: ATR Уайлдера 10, множитель 3, параметры в GUI/CLI. |
+| `start_chart_realtime_supertrend_RTS.cmd`, `start_chart_realtime_supertrend_MIX.cmd` | Запуск двух дополнительных окон с Supertrend из `.venv` двойным щелчком; используют тот же общий сборщик QUIK. |
 | `start_chart_realtime_RTS.cmd`, `start_chart_realtime_MIX.cmd` | Запуск двух графиков двойным щелчком из `.venv`; дополнительные параметры передаются соответствующему Python-скрипту. |
 | `backtest/backtest_duration.py` | Проверка стратегии по длительности баров и построение отчётов PnL. |
 | `backtest/backtest_duration_reversed.py` | Та же проверка с противоположным направлением каждой разрешённой сделки. |
@@ -48,8 +50,23 @@ Python-скрипты запускаются из VS Code или PowerShell. Б�
 Открытые окна подхватывают ночное обновление истории и порогов. После первой
 сделки дня порог сохраняется; если ночной расчёт изменился позднее, окно
 предлагает нажать **Обновить** для пересборки текущего дня.
+Чтение QuikSharp поддерживает UTF-8 и Windows-1251 русского терминала;
+кодировка справочника и callbacks не вызывает ложный разрыв соединения.
 
 [Подключение, параметры, ночная подготовка, восстановление и диагностика](docs/realtime-quik.md).
+
+Для вариантов с **Supertrend** запустите `start_chart_realtime_supertrend_RTS.cmd`
+и `start_chart_realtime_supertrend_MIX.cmd`. Они сохраняют Семафор/SMA и добавляют
+синюю ветвь роста и красную снижения. ATR 10 и множитель 3 заданы по умолчанию;
+их можно менять в окне, флажок **Supertrend** управляет только видимостью.
+Линии и текущая свеча обновляются на прежнем холсте. Прогрев использует всю
+предысторию до видимого `--start`; неполная текущая свеча также участвует в расчёте.
+
+```powershell
+.\.venv\Scripts\python.exe chart_delta_bar_semafor_realtime_supertrend_RTS.py --atr-period 10 --multiplier 3
+.\.venv\Scripts\python.exe chart_delta_bar_semafor_realtime_supertrend_MIX.py --start 2022-09-01
+.\.venv\Scripts\python.exe chart_delta_bar_semafor_realtime_supertrend_RTS.py --help
+```
 
 ## График с «Семафором» и островами
 

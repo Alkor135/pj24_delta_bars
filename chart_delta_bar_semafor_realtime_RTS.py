@@ -2,7 +2,7 @@ r"""Открывает отдельный реал-тайм график дел�
 
 Примеры запуска из папки проекта:
     .\.venv\Scripts\python.exe chart_delta_bar_semafor_realtime_RTS.py
-    .\.venv\Scripts\python.exe chart_delta_bar_semafor_realtime_RTS.py --start 2026-09-01
+    .\.venv\Scripts\python.exe chart_delta_bar_semafor_realtime_RTS.py --start 2022-09-01
     .\.venv\Scripts\python.exe chart_delta_bar_semafor_realtime_RTS.py --threshold 100 --refresh-ms 200
     .\.venv\Scripts\python.exe chart_delta_bar_semafor_realtime_RTS.py --config realtime_quik.json --help
 
